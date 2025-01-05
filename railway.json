@@ -1,9 +1,11 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "python -c \"import os, sys; vars=['OPENAI_API_KEY', 'GHL_ACCESS', 'RAILWAY_API_TOKEN', 'GHL_REFRESH', 'PORT']; missing=[v for v in vars if not os.getenv(v)]; print(f'Missing variables: {missing}') if missing else None; sys.exit(1 if missing else 0)\" && hypercorn main:app --bind \"[::]:$PORT\""
-  }
+    "$schema": "https://railway.app/railway.schema.json",
+    "build": {
+        "builder": "NIXPACKS"
+    },
+    "deploy": {
+        "startCommand": "hypercorn main:app --bind 0.0.0.0:$PORT",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 2
+    }
 }
