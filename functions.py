@@ -217,4 +217,3 @@ async def process_function_response(thread_id, run_id, run_response, ghl_contact
         ghl_contact_id=ghl_contact_id)
     
     return action
-
