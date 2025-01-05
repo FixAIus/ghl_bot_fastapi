@@ -5,14 +5,30 @@ import traceback
 from openai import AsyncOpenAI
 import asyncio
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Load environment variables first
+load_dotenv()
+
+# Initialize OpenAI client after environment check
+def get_openai_client():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
+    return AsyncOpenAI(api_key=api_key)
+
+# Create client after environment check
+openai_client = get_openai_client()
 
 
 async def fetch_ghl_access_token():
     """Fetch current GHL access token."""
-    # Simply return the token since it's already in env vars
-    return os.getenv("GHL_ACCESS")
+    token = os.getenv("GHL_ACCESS")
+    if not token:
+        await log("error", "GHL Access -- Token not found in environment", 
+            scope="GHL Access")
+        return None
+    return token
 
 
 class GHLResponseObject:
@@ -160,22 +176,27 @@ async def retrieve_and_compile_messages(ghl_convo_id, ghl_recent_message, ghl_co
 
 async def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
     """Async version of run_ai_thread."""
-    run = await openai_client.beta.threads.runs.create(
-        thread_id=thread_id,
-        assistant_id=assistant_id,
-        additional_messages=messages
-    )
-    
-    while True:
-        run = await openai_client.beta.threads.runs.retrieve(
+    try:
+        run = await openai_client.beta.threads.runs.create(
             thread_id=thread_id,
-            run_id=run.id
+            assistant_id=assistant_id,
+            additional_messages=messages
         )
-        if run.status in ['completed', 'requires_action', 'failed']:
-            break
-        await asyncio.sleep(1)  # Add small delay between checks
         
-    return run, run.status, run.id
+        while True:
+            run = await openai_client.beta.threads.runs.retrieve(
+                thread_id=thread_id,
+                run_id=run.id
+            )
+            if run.status in ['completed', 'requires_action', 'failed']:
+                break
+            await asyncio.sleep(1)
+            
+        return run, run.status, run.id
+    except Exception as e:
+        await log("error", f"AI Run -- API call failed -- {ghl_contact_id}",
+            scope="AI Run", error=str(e), traceback=traceback.format_exc())
+        raise
 
 
 async def process_message_response(thread_id, run_id, ghl_contact_id):
