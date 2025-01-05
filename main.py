@@ -19,7 +19,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from asyncio import Queue
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any
 
 # Optimize for 8 vCPUs
 MAX_CONCURRENT_REQUESTS = 6
