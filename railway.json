@@ -4,6 +4,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "hypercorn main:app --bind \"[::]:$PORT\""
+    "startCommand": "python -c \"import os, sys; vars=['OPENAI_API_KEY', 'GHL_ACCESS', 'RAILWAY_API_TOKEN', 'GHL_REFRESH', 'PORT']; missing=[v for v in vars if not os.getenv(v)]; print(f'Missing variables: {missing}') if missing else None; sys.exit(1 if missing else 0)\" && hypercorn main:app --bind \"[::]:$PORT\""
   }
 }
