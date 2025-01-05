@@ -4,7 +4,11 @@ import traceback
 from openai import AsyncOpenAI
 import aiohttp
 
-# At the top of functions.py, after imports
+def log(level, msg, **kwargs):
+    """Logging function remains synchronous"""
+    print(json.dumps({"level": level, "msg": msg, **kwargs}))
+
+# Check OpenAI API key after log function is defined
 api_key = os.getenv("OPENAI_API_KEY")
 log("info", "OpenAI API Key Status", 
     has_key=bool(api_key), 
@@ -76,10 +80,6 @@ class GHLResponseObject:
     
     def get_response(self):
         return {k: v for k, v in self.schema.items() if v is not None}
-
-def log(level, msg, **kwargs):
-    """Logging function remains synchronous"""
-    print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
 async def validate_request_data(data):
     """Async version of request validation"""
