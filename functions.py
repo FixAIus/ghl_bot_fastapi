@@ -10,40 +10,9 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 async def fetch_ghl_access_token():
-    """Fetch current GHL access token from Railway."""
-    query = f"""
-    query {{
-      variables(
-        projectId: "{os.getenv('RAILWAY_PROJECT_ID')}"
-        environmentId: "{os.getenv('RAILWAY_ENVIRONMENT_ID')}"
-        serviceId: "{os.getenv('RAILWAY_SERVICE_ID')}"
-      )
-    }}
-    """
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://backboard.railway.app/graphql/v2",
-                headers={
-                    "Authorization": f"Bearer {os.getenv('RAILWAY_API_TOKEN')}", 
-                    "Content-Type": "application/json"
-                },
-                json={"query": query}
-            ) as response:
-                if response.status == 200:
-                    response_data = await response.json()
-                    if response_data and 'data' in response_data and response_data['data']:
-                        variables = response_data['data'].get('variables', {})
-                        if variables and 'GHL_ACCESS' in variables:
-                            return variables['GHL_ACCESS']
-                await log("error", f"GHL Access -- Failed to fetch token", 
-                    scope="GHL Access", status_code=response.status, 
-                    response=await response.text())
-    except Exception as e:
-        await log("error", f"GHL Access -- Request failed", 
-            scope="GHL Access", error=str(e), 
-            traceback=traceback.format_exc())
-    return None
+    """Fetch current GHL access token."""
+    # Simply return the token since it's already in env vars
+    return os.getenv("GHL_ACCESS")
 
 
 class GHLResponseObject:
@@ -115,7 +84,7 @@ async def validate_request_data(data):
 
 
 async def get_conversation_id(ghl_contact_id):
-    """Async version of get_conversation_id."""
+    """Retrieve conversation ID from GHL API."""
     token = await fetch_ghl_access_token()
     if not token:
         return None
@@ -128,7 +97,7 @@ async def get_conversation_id(ghl_contact_id):
                 "Version": "2021-04-15",
                 "Accept": "application/json"
             },
-            params={"locationId": os.getenv('GHL_LOCATION_ID'), "contactId": ghl_contact_id}
+            params={"contactId": ghl_contact_id}
         ) as response:
             if response.status != 200:
                 await log("error", f"Validation -- Get convo ID API call failed -- {ghl_contact_id}", 
@@ -245,9 +214,7 @@ async def process_function_response(thread_id, run_id, run_response, ghl_contact
     await log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
         scope="AI Function", tool_call_id=tool_call.id, run_id=run_id, 
         thread_id=thread_id, function=function_args, selected_action=action, 
-        
-
-
         ghl_contact_id=ghl_contact_id)
     
     return action
+
