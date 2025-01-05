@@ -4,7 +4,7 @@ import json
 import traceback
 from openai import AsyncOpenAI
 import asyncio
-
+from contextlib import asynccontextmanager
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -245,6 +245,10 @@ async def process_function_response(thread_id, run_id, run_response, ghl_contact
     log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
         scope="AI Function", tool_call_id=tool_call.id, run_id=run_id, 
         thread_id=thread_id, function=function_args, selected_action=action, 
+        ghl_contact_id=ghl_contact_id)
+    
+    return action
+
         ghl_contact_id=ghl_contact_id)
     
     return action
