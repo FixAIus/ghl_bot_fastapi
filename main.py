@@ -26,17 +26,21 @@ from functions import (
 # Load environment variables
 load_dotenv()
 
-# Verify required environment variables
-required_env_vars = [
-    "OPENAI_API_KEY",
-    "GHL_ACCESS",
-    "RAILWAY_API_TOKEN",
-    "GHL_REFRESH"
-]
+try:
+    # Verify required environment variables
+    required_env_vars = [
+        "OPENAI_API_KEY",
+        "GHL_ACCESS",
+        "RAILWAY_API_TOKEN",
+        "GHL_REFRESH"
+    ]
 
-missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-if missing_vars:
-    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+except Exception as e:
+    print(f"Error during startup: {str(e)}")
+    raise
 
 # Optimize for concurrent connections
 MAX_CONCURRENT_REQUESTS = 6
@@ -213,10 +217,6 @@ async def test_endpoint(request: TestRequest):
         "message": "wwwwww",
         "error": "booo error"
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
 
 if __name__ == "__main__":
     import uvicorn
