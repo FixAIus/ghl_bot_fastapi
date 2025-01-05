@@ -4,8 +4,14 @@ import traceback
 from openai import AsyncOpenAI
 import aiohttp
 
+# At the top of functions.py, after imports
+api_key = os.getenv("OPENAI_API_KEY")
+log("info", "OpenAI API Key Status", 
+    has_key=bool(api_key), 
+    key_length=len(api_key) if api_key else 0)
+
 # Initialize async OpenAI client
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = AsyncOpenAI(api_key=api_key)
 
 async def fetch_ghl_access_token():
     """Fetch current GHL access token from Railway."""
