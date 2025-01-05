@@ -11,15 +11,15 @@ from pydantic import BaseModel, Field
 import traceback
 import asyncio
 from typing import Dict, Optional
-from functions import (  # Make sure these are async functions in your functions.py
+from functions import (
     log,
     GHLResponseObject,
-    validate_request_data_async,
-    get_conversation_id_async,
-    retrieve_and_compile_messages_async,
-    run_ai_thread_async,
-    process_message_response_async,
-    process_function_response_async
+    validate_request_data,
+    get_conversation_id,
+    retrieve_and_compile_messages,
+    run_ai_thread,
+    process_message_response,
+    process_function_response
 )
 
 # Optimize for concurrent connections
@@ -80,7 +80,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             res_obj = GHLResponseObject()
             
             # Validate request data
-            validated_fields = await validate_request_data_async(request_data.dict())
+            validated_fields = await validate_request_data(request_data.dict())
             if not validated_fields:
                 raise HTTPException(status_code=400, detail="Invalid request data")
 
@@ -90,7 +90,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 res_obj.add_action("add_convo_id", {"ghl_convo_id": ghl_convo_id})
 
             # Process messages
-            new_messages = await retrieve_and_compile_messages_async(
+            new_messages = await retrieve_and_compile_messages(
                 ghl_convo_id,
                 validated_fields["ghl_recent_message"],
                 validated_fields["ghl_contact_id"]
@@ -99,7 +99,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 raise HTTPException(status_code=400, detail="No messages added")
 
             # Run AI processing
-            run_response, run_status, run_id = await run_ai_thread_async(
+            run_response, run_status, run_id = await run_ai_thread(
                 validated_fields["thread_id"],
                 validated_fields["assistant_id"],
                 new_messages,
@@ -108,7 +108,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
 
             # Handle response types
             if run_status == "completed":
-                ai_content = await process_message_response_async(
+                ai_content = await process_message_response(
                     validated_fields["thread_id"],
                     run_id,
                     validated_fields["ghl_contact_id"]
@@ -118,7 +118,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 res_obj.add_message(ai_content)
 
             elif run_status == "requires_action":
-                generated_function = await process_function_response_async(
+                generated_function = await process_function_response(
                     validated_fields["thread_id"],
                     run_id,
                     run_response,
@@ -201,4 +201,3 @@ async def test_endpoint(request: TestRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
-
