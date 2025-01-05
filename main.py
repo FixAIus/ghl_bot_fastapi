@@ -5,6 +5,29 @@ Using asyncio and aiohttp for improved performance
 
 import os
 from dotenv import load_dotenv
+import sys
+
+# Load environment variables first
+load_dotenv()
+
+# Verify required environment variables before imports
+required_env_vars = [
+    "OPENAI_API_KEY",
+    "GHL_ACCESS",
+    "RAILWAY_API_TOKEN",
+    "GHL_REFRESH",
+    "RAILWAY_PROJECT_ID",
+    "RAILWAY_ENVIRONMENT_ID",
+    "RAILWAY_SERVICE_ID",
+    "PORT"
+]
+
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+if missing_vars:
+    print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
+    sys.exit(1)
+
+# Now import the rest after environment check
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,25 +45,6 @@ from functions import (
     process_message_response,
     process_function_response
 )
-
-# Load environment variables
-load_dotenv()
-
-try:
-    # Verify required environment variables
-    required_env_vars = [
-        "OPENAI_API_KEY",
-        "GHL_ACCESS",
-        "RAILWAY_API_TOKEN",
-        "GHL_REFRESH"
-    ]
-
-    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-    if missing_vars:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
-except Exception as e:
-    print(f"Error during startup: {str(e)}")
-    raise
 
 # Optimize for concurrent connections
 MAX_CONCURRENT_REQUESTS = 6
