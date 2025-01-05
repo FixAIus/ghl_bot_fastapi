@@ -7,7 +7,7 @@ tags:
   - python
 ---
 
-# FastAPI Example
+# GHL Chatbot with FastAPI
 
 This example starts up a [FastAPI](https://fastapi.tiangolo.com/) server.
 
