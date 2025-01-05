@@ -8,6 +8,30 @@ def log(level, msg, **kwargs):
     """Logging function remains synchronous"""
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
+def check_environment_variables():
+    """Check and log status of required environment variables"""
+    required_vars = [
+        'RAILWAY_PROJECT_ID',
+        'RAILWAY_ENVIRONMENT_ID',
+        'RAILWAY_SERVICE_ID',
+        'RAILWAY_API_TOKEN',
+        'GHL_LOCATION_ID',
+        'OPENAI_API_KEY'
+    ]
+    
+    env_status = {}
+    for var in required_vars:
+        value = os.getenv(var)
+        env_status[var] = {
+            'present': bool(value),
+            'length': len(value) if value else 0
+        }
+    
+    log("info", "Environment Variables Status", **env_status)
+    return all(env_status[var]['present'] for var in required_vars)
+
+check_environment_variables()
+
 # Check OpenAI API key after log function is defined
 api_key = os.getenv("OPENAI_API_KEY")
 log("info", "OpenAI API Key Status", 
@@ -38,18 +62,41 @@ async def fetch_ghl_access_token():
                 },
                 json={"query": query}
             ) as response:
+                response_text = await response.text()
+                
                 if response.status == 200:
-                    response_data = await response.json()
-                    if response_data and 'data' in response_data and response_data['data']:
-                        variables = response_data['data'].get('variables', {})
-                        if variables and 'GHL_ACCESS' in variables:
-                            return variables['GHL_ACCESS']
-                log("error", f"GHL Access -- Failed to fetch token", 
-                    scope="GHL Access", status_code=response.status, 
-                    response=await response.text())
+                    try:
+                        response_data = await response.json()
+                        if response_data and 'data' in response_data and response_data['data']:
+                            variables = response_data['data'].get('variables', {})
+                            if variables and 'GHL_ACCESS' in variables:
+                                token = variables['GHL_ACCESS']
+                                # Validate token format
+                                if token and len(token) > 20:  # Basic validation
+                                    log("info", "Successfully retrieved GHL token",
+                                        token_length=len(token))
+                                    return token
+                                else:
+                                    log("error", "Retrieved invalid GHL token",
+                                        token_length=len(token) if token else 0)
+                            else:
+                                log("error", "GHL_ACCESS not found in variables",
+                                    variables=list(variables.keys()) if variables else None)
+                        else:
+                            log("error", "Invalid response structure from Railway API",
+                                response_preview=str(response_data)[:200])
+                    except json.JSONDecodeError as e:
+                        log("error", "Failed to parse Railway API response",
+                            error=str(e),
+                            response_preview=response_text[:200])
+                else:
+                    log("error", "Railway API request failed",
+                        status_code=response.status,
+                        response=response_text)
+                        
     except Exception as e:
-        log("error", f"GHL Access -- Request failed", 
-            scope="GHL Access", error=str(e), 
+        log("error", "GHL Access token fetch failed",
+            error=str(e),
             traceback=traceback.format_exc())
     return None
 
@@ -107,32 +154,75 @@ async def get_conversation_id(ghl_contact_id):
     """Async version of conversation ID retrieval"""
     token = await fetch_ghl_access_token()
     if not token:
+        log("error", "Failed to get valid GHL access token",
+            ghl_contact_id=ghl_contact_id)
         return None
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            "https://services.leadconnectorhq.com/conversations/search",
-            headers={
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
                 "Authorization": f"Bearer {token}",
                 "Version": "2021-04-15",
                 "Accept": "application/json"
-            },
-            params={"locationId": os.getenv('GHL_LOCATION_ID'), "contactId": ghl_contact_id}
-        ) as search_response:
-            if search_response.status != 200:
-                log("error", f"Validation -- Get convo ID API call failed -- {ghl_contact_id}", 
-                    scope="Validation", status_code=search_response.status, 
-                    response=await search_response.text(), ghl_contact_id=ghl_contact_id)
-                return None
-
-            response_data = await search_response.json()
-            conversations = response_data.get("conversations", [])
-            if not conversations:
-                log("error", f"Validation -- No Convo ID found -- {ghl_contact_id}", 
-                    scope="Validation", response=response_data, ghl_contact_id=ghl_contact_id)
-                return None
+            }
+            params = {
+                "locationId": os.getenv('GHL_LOCATION_ID'),
+                "contactId": ghl_contact_id
+            }
             
-            return conversations[0].get("id")
+            log("info", "Attempting GHL API call",
+                endpoint="conversations/search",
+                headers_present=bool(headers),
+                params=params)
+
+            async with session.get(
+                "https://services.leadconnectorhq.com/conversations/search",
+                headers=headers,
+                params=params
+            ) as search_response:
+                response_text = await search_response.text()
+                
+                if search_response.status != 200:
+                    log("error", "GHL API call failed",
+                        status_code=search_response.status,
+                        response=response_text,
+                        ghl_contact_id=ghl_contact_id)
+                    return None
+
+                try:
+                    response_data = await search_response.json()
+                    conversations = response_data.get("conversations", [])
+                    
+                    if not conversations:
+                        log("error", "No conversations found",
+                            ghl_contact_id=ghl_contact_id,
+                            response_data=response_data)
+                        return None
+                    
+                    convo_id = conversations[0].get("id")
+                    if convo_id:
+                        log("info", "Successfully retrieved conversation ID",
+                            ghl_contact_id=ghl_contact_id,
+                            conversation_id=convo_id)
+                        return convo_id
+                    else:
+                        log("error", "Conversation ID missing from response",
+                            ghl_contact_id=ghl_contact_id,
+                            conversation=conversations[0])
+                        return None
+                        
+                except json.JSONDecodeError as e:
+                    log("error", "Failed to parse GHL API response",
+                        error=str(e),
+                        response_preview=response_text[:200])
+                    return None
+                    
+    except Exception as e:
+        log("error", "Unexpected error in get_conversation_id",
+            error=str(e),
+            traceback=traceback.format_exc(),
+            ghl_contact_id=ghl_contact_id)
+        return None
 
 async def retrieve_and_compile_messages(ghl_convo_id, ghl_recent_message, ghl_contact_id):
     """Async version of message retrieval and compilation"""
