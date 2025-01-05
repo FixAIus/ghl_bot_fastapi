@@ -1,29 +1,29 @@
-import json
+"""
+Asynchronous FastAPI server for AI conversation processing
+Using asyncio and aiohttp for improved performance
+"""
+
 import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import traceback
-from functions import (
+import asyncio
+from typing import Dict, Optional
+from functions import (  # Make sure these are async functions in your functions.py
     log,
     GHLResponseObject,
-    validate_request_data,
-    get_conversation_id,
-    retrieve_and_compile_messages,
-    run_ai_thread,
-    process_message_response,
-    process_function_response
+    validate_request_data_async,
+    get_conversation_id_async,
+    retrieve_and_compile_messages_async,
+    run_ai_thread_async,
+    process_message_response_async,
+    process_function_response_async
 )
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-from asyncio import Queue
-from typing import Dict, Optional
 
-# Optimize for 8 vCPUs
+# Optimize for concurrent connections
 MAX_CONCURRENT_REQUESTS = 6
-THREAD_POOL_SIZE = 8
 QUEUE_WORKERS = 4
 
 # Request Models
@@ -57,31 +57,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize thread pool
-thread_pool = ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
-
 # Request queue settings
-REQUEST_QUEUE: Dict[str, Queue] = {}
+REQUEST_QUEUE: Dict[str, asyncio.Queue] = {}
 processing_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-async def get_or_create_queue(contact_id: str) -> Queue:
+async def get_or_create_queue(contact_id: str) -> asyncio.Queue:
     """
     Get or create an unlimited queue for a specific contact
     """
     if contact_id not in REQUEST_QUEUE:
-        REQUEST_QUEUE[contact_id] = Queue()
+        REQUEST_QUEUE[contact_id] = asyncio.Queue()
     return REQUEST_QUEUE[contact_id]
-
-async def parallel_executor(func, *args, **kwargs):
-    """
-    Execute CPU-bound tasks in the thread pool
-    """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(thread_pool, partial(func, *args, **kwargs))
 
 async def process_queued_request(contact_id: str, request_data: ConversationRequest):
     """
-    Process a single request from the queue with optimized resource usage
+    Process a single request from the queue asynchronously
     """
     async with processing_semaphore:
         queue = await get_or_create_queue(contact_id)
@@ -89,11 +79,8 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
         try:
             res_obj = GHLResponseObject()
             
-            # Validate request data using parallel executor
-            validated_fields = await parallel_executor(
-                validate_request_data, 
-                request_data.dict()
-            )
+            # Validate request data
+            validated_fields = await validate_request_data_async(request_data.dict())
             if not validated_fields:
                 raise HTTPException(status_code=400, detail="Invalid request data")
 
@@ -102,9 +89,8 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             if validated_fields.get("add_convo_id_action"):
                 res_obj.add_action("add_convo_id", {"ghl_convo_id": ghl_convo_id})
 
-            # Process messages in parallel
-            new_messages = await parallel_executor(
-                retrieve_and_compile_messages,
+            # Process messages
+            new_messages = await retrieve_and_compile_messages_async(
                 ghl_convo_id,
                 validated_fields["ghl_recent_message"],
                 validated_fields["ghl_contact_id"]
@@ -112,9 +98,8 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             if not new_messages:
                 raise HTTPException(status_code=400, detail="No messages added")
 
-            # Run AI processing in parallel
-            run_response, run_status, run_id = await parallel_executor(
-                run_ai_thread,
+            # Run AI processing
+            run_response, run_status, run_id = await run_ai_thread_async(
                 validated_fields["thread_id"],
                 validated_fields["assistant_id"],
                 new_messages,
@@ -123,8 +108,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
 
             # Handle response types
             if run_status == "completed":
-                ai_content = await parallel_executor(
-                    process_message_response,
+                ai_content = await process_message_response_async(
                     validated_fields["thread_id"],
                     run_id,
                     validated_fields["ghl_contact_id"]
@@ -134,8 +118,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 res_obj.add_message(ai_content)
 
             elif run_status == "requires_action":
-                generated_function = await parallel_executor(
-                    process_function_response,
+                generated_function = await process_function_response_async(
                     validated_fields["thread_id"],
                     run_id,
                     run_response,
@@ -144,7 +127,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 res_obj.add_action(generated_function)
 
             else:
-                log("error", f"AI Run Failed -- {validated_fields['ghl_contact_id']}", 
+                await log("error", f"AI Run Failed -- {validated_fields['ghl_contact_id']}", 
                     scope="AI Run", run_status=run_status, run_id=run_id, 
                     thread_id=validated_fields['thread_id'])
                 raise HTTPException(status_code=400, detail=f"Run {run_status}")
@@ -155,7 +138,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             raise
         except Exception as e:
             tb_str = traceback.format_exc()
-            log("error", "QUEUE -- Request processing failed",
+            await log("error", "QUEUE -- Request processing failed",
                 scope="Queue", error=str(e), traceback=tb_str,
                 contact_id=contact_id)
             raise HTTPException(status_code=500, detail=str(e))
@@ -181,7 +164,7 @@ async def move_convo_forward(request: ConversationRequest):
         
         # Add request to queue
         await queue.put(request)
-        log("info", f"Request queued for contact {contact_id}", 
+        await log("info", f"Request queued for contact {contact_id}", 
             queue_size=queue.qsize())
         
         # Process the request
@@ -191,7 +174,7 @@ async def move_convo_forward(request: ConversationRequest):
         raise
     except Exception as e:
         tb_str = traceback.format_exc()
-        log("error", "GENERAL -- Unhandled exception in queue processing",
+        await log("error", "GENERAL -- Unhandled exception in queue processing",
             scope="General", error=str(e), traceback=tb_str)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -202,7 +185,7 @@ async def test_endpoint(request: TestRequest):
     """
     Test endpoint that demonstrates the expected response format
     """
-    log("info", "Received request parameters", **request.dict())
+    await log("info", "Received request parameters", **request.dict())
     return {
         "response_type": "action, message, message_action",
         "action": {
@@ -215,21 +198,7 @@ async def test_endpoint(request: TestRequest):
         "error": "booo error"
     }
 
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize resources before the server starts
-    """
-    global thread_pool
-    thread_pool = ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Clean up resources when the server shuts down
-    """
-    thread_pool.shutdown(wait=True)
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+
