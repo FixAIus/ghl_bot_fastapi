@@ -1,40 +1,8 @@
-"""
-Asynchronous FastAPI server for AI conversation processing
-Using asyncio and aiohttp for improved performance
-"""
-
 import os
-from dotenv import load_dotenv
-import sys
-
-# Load environment variables first
-load_dotenv()
-
-# Verify required environment variables before imports
-required_env_vars = [
-    "OPENAI_API_KEY",
-    "GHL_ACCESS",
-    "RAILWAY_API_TOKEN",
-    "GHL_REFRESH",
-    "RAILWAY_PROJECT_ID",
-    "RAILWAY_ENVIRONMENT_ID",
-    "RAILWAY_SERVICE_ID",
-    "PORT"
-]
-
-missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-if missing_vars:
-    print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
-    sys.exit(1)
-
-# Now import the rest after environment check
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from pydantic import BaseModel
 import traceback
-import asyncio
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from functions import (
     log,
     GHLResponseObject,
@@ -45,58 +13,40 @@ from functions import (
     process_message_response,
     process_function_response
 )
+import asyncio
+from asyncio import Queue
 
-# Optimize for concurrent connections
+# Configuration constants
 MAX_CONCURRENT_REQUESTS = 6
 QUEUE_WORKERS = 4
 
-# Request Models
+app = FastAPI()
+
+# Request queue and processing settings
+REQUEST_QUEUE: Dict[str, Queue] = {}
+processing_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
 class ConversationRequest(BaseModel):
     thread_id: str
     assistant_id: str
     ghl_contact_id: str
     ghl_recent_message: str
-    ghl_convo_id: str
-    add_convo_id_action: Optional[bool] = Field(default=False)
-
-class TestRequest(BaseModel):
-    thread_id: Optional[str] = None
-    assistant_id: Optional[str] = None
-    ghl_contact_id: Optional[str] = None
-    ghl_recent_message: Optional[str] = None
     ghl_convo_id: Optional[str] = None
 
-app = FastAPI(
-    title="AI Conversation API",
-    description="API for handling AI-powered conversations",
-    version="1.0.0"
-)
+class ConversationResponse(BaseModel):
+    response_type: Optional[str] = None
+    action: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
+    error: Optional[str] = None
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Adjust this in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Request queue settings
-REQUEST_QUEUE: Dict[str, asyncio.Queue] = {}
-processing_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-
-async def get_or_create_queue(contact_id: str) -> asyncio.Queue:
-    """
-    Get or create an unlimited queue for a specific contact
-    """
+async def get_or_create_queue(contact_id: str) -> Queue:
+    """Get or create an unlimited queue for a specific contact"""
     if contact_id not in REQUEST_QUEUE:
-        REQUEST_QUEUE[contact_id] = asyncio.Queue()
+        REQUEST_QUEUE[contact_id] = Queue()
     return REQUEST_QUEUE[contact_id]
 
-async def process_queued_request(contact_id: str, request_data: ConversationRequest):
-    """
-    Process a single request from the queue asynchronously
-    """
+async def process_queued_request(contact_id: str, request_data: dict):
+    """Process a single request from the queue"""
     async with processing_semaphore:
         queue = await get_or_create_queue(contact_id)
         
@@ -104,11 +54,10 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             res_obj = GHLResponseObject()
             
             # Validate request data
-            validated_fields = await validate_request_data(request_data.dict())
+            validated_fields = await validate_request_data(request_data)
             if not validated_fields:
                 raise HTTPException(status_code=400, detail="Invalid request data")
 
-            # Extract conversation ID
             ghl_convo_id = validated_fields["ghl_convo_id"]
             if validated_fields.get("add_convo_id_action"):
                 res_obj.add_action("add_convo_id", {"ghl_convo_id": ghl_convo_id})
@@ -130,7 +79,6 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 validated_fields["ghl_contact_id"]
             )
 
-            # Handle response types
             if run_status == "completed":
                 ai_content = await process_message_response(
                     validated_fields["thread_id"],
@@ -151,7 +99,7 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
                 res_obj.add_action(generated_function)
 
             else:
-                await log("error", f"AI Run Failed -- {validated_fields['ghl_contact_id']}", 
+                log("error", f"AI Run Failed -- {validated_fields['ghl_contact_id']}", 
                     scope="AI Run", run_status=run_status, run_id=run_id, 
                     thread_id=validated_fields['thread_id'])
                 raise HTTPException(status_code=400, detail=f"Run {run_status}")
@@ -162,74 +110,76 @@ async def process_queued_request(contact_id: str, request_data: ConversationRequ
             raise
         except Exception as e:
             tb_str = traceback.format_exc()
-            await log("error", "QUEUE -- Request processing failed",
+            log("error", "QUEUE -- Request processing failed",
                 scope="Queue", error=str(e), traceback=tb_str,
                 contact_id=contact_id)
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail={
+                "error": str(e),
+                "traceback": tb_str
+            })
         finally:
             # Remove completed request from queue
             await queue.get()
             queue.task_done()
 
-@app.post("/moveConvoForward", 
-    summary="Process a conversation message",
-    response_description="Processed conversation response")
-async def move_convo_forward(request: ConversationRequest):
+@app.post('/moveConvoForward', response_model=ConversationResponse)
+async def move_convo_forward(
+    request: ConversationRequest,
+    background_tasks: BackgroundTasks
+):
     """
-    Process an incoming conversation message with the AI assistant.
-    
-    - Queues the request for processing
-    - Handles the conversation flow
-    - Returns the AI response or action
+    Asynchronous endpoint with request queueing for handling conversation flow.
+    All requests are accepted and processed in order per contact.
     """
     try:
-        contact_id = request.ghl_contact_id
-        queue = await get_or_create_queue(contact_id)
+        if not request.ghl_contact_id:
+            raise HTTPException(status_code=400, detail="Missing contact ID")
+            
+        # Get or create queue for this contact
+        queue = await get_or_create_queue(request.ghl_contact_id)
         
         # Add request to queue
-        await queue.put(request)
-        await log("info", f"Request queued for contact {contact_id}", 
+        await queue.put(request.dict())
+        log("info", f"Request queued for contact {request.ghl_contact_id}", 
             queue_size=queue.qsize())
         
         # Process the request
-        return await process_queued_request(contact_id, request)
+        response = await process_queued_request(request.ghl_contact_id, request.dict())
+        return response
 
     except HTTPException:
         raise
     except Exception as e:
         tb_str = traceback.format_exc()
-        await log("error", "GENERAL -- Unhandled exception in queue processing",
+        log("error", "GENERAL -- Unhandled exception in queue processing",
             scope="General", error=str(e), traceback=tb_str)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={
+            "error": str(e),
+            "traceback": tb_str
+        })
 
-@app.post("/testEndpoint", 
-    summary="Test endpoint for format verification",
-    response_description="Example response format")
-async def test_endpoint(request: TestRequest):
-    """
-    Test endpoint that demonstrates the expected response format
-    """
-    await log("info", "Received request parameters", **request.dict())
-    return {
-        "response_type": "action, message, message_action",
-        "action": {
+@app.post('/testEndpoint', response_model=ConversationResponse)
+async def test_format(request: ConversationRequest):
+    """Test endpoint that demonstrates the expected response format"""
+    log("info", "Received request parameters", **request.dict())
+    return ConversationResponse(
+        response_type="action, message, message_action",
+        action={
             "type": "force end, handoff, add_contact_id",
             "details": {
                 "ghl_convo_id": "afdlja;ldf"
             }
         },
-        "message": "wwwwww",
-        "error": "booo error"
-    }
+        message="wwwwww",
+        error="booo error"
+    )
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import hypercorn.asyncio
-    import asyncio
     
     config = hypercorn.Config()
-    config.bind = [f"0.0.0.0:{int(os.getenv('PORT', '5000'))}"]
-    config.workers = 1  # Since we're using async
-    config.keep_alive_timeout = 90  # Optimal for cloud platforms
+    config.bind = [f"0.0.0.0:{os.getenv('PORT', '5000')}"]
     config.worker_class = "asyncio"
     
     asyncio.run(hypercorn.asyncio.serve(app, config))
+
