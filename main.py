@@ -219,5 +219,13 @@ async def test_endpoint(request: TestRequest):
     }
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+    import hypercorn.asyncio
+    import asyncio
+    
+    config = hypercorn.Config()
+    config.bind = [f"0.0.0.0:{int(os.getenv('PORT', '5000'))}"]
+    config.workers = 1  # Since we're using async
+    config.keep_alive_timeout = 90  # Optimal for cloud platforms
+    config.worker_class = "asyncio"
+    
+    asyncio.run(hypercorn.asyncio.serve(app, config))
