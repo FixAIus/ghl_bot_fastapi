@@ -36,11 +36,11 @@ async def fetch_ghl_access_token():
                         variables = response_data['data'].get('variables', {})
                         if variables and 'GHL_ACCESS' in variables:
                             return variables['GHL_ACCESS']
-                log("error", f"GHL Access -- Failed to fetch token", 
+                await log("error", f"GHL Access -- Failed to fetch token", 
                     scope="GHL Access", status_code=response.status, 
                     response=await response.text())
     except Exception as e:
-        log("error", f"GHL Access -- Request failed", 
+        await log("error", f"GHL Access -- Request failed", 
             scope="GHL Access", error=str(e), 
             traceback=traceback.format_exc())
     return None
@@ -86,7 +86,7 @@ class GHLResponseObject:
         return {k: v for k, v in self.schema.items() if v is not None}
 
 
-def log(level, msg, **kwargs):
+async def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
@@ -100,7 +100,7 @@ async def validate_request_data(data):
 
     missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
     if missing_fields:
-        log("error", f"Validation -- Missing {', '.join(missing_fields)} -- {fields['ghl_contact_id']}",
+        await log("error", f"Validation -- Missing {', '.join(missing_fields)} -- {fields['ghl_contact_id']}",
             ghl_contact_id=fields["ghl_contact_id"], scope="Validation", received_fields=fields)
         return None
 
@@ -110,7 +110,7 @@ async def validate_request_data(data):
             return None
         fields["add_convo_id_action"] = True
 
-    log("info", f"Validation -- Fields Received -- {fields['ghl_contact_id']}", scope="Validation", **fields)
+    await log("info", f"Validation -- Fields Received -- {fields['ghl_contact_id']}", scope="Validation", **fields)
     return fields
 
 
@@ -131,7 +131,7 @@ async def get_conversation_id(ghl_contact_id):
             params={"locationId": os.getenv('GHL_LOCATION_ID'), "contactId": ghl_contact_id}
         ) as response:
             if response.status != 200:
-                log("error", f"Validation -- Get convo ID API call failed -- {ghl_contact_id}", 
+                await log("error", f"Validation -- Get convo ID API call failed -- {ghl_contact_id}", 
                     scope="Validation", status_code=response.status, 
                     response=await response.text(), ghl_contact_id=ghl_contact_id)
                 return None
@@ -139,7 +139,7 @@ async def get_conversation_id(ghl_contact_id):
             data = await response.json()
             conversations = data.get("conversations", [])
             if not conversations:
-                log("error", f"Validation -- No Convo ID found -- {ghl_contact_id}", 
+                await log("error", f"Validation -- No Convo ID found -- {ghl_contact_id}", 
                     scope="Validation", response=data, ghl_contact_id=ghl_contact_id)
                 return None
             
@@ -150,7 +150,7 @@ async def retrieve_and_compile_messages(ghl_convo_id, ghl_recent_message, ghl_co
     """Async version of retrieve_and_compile_messages."""
     token = await fetch_ghl_access_token()
     if not token:
-        log("error", f"Compile Messages -- Token fetch failed -- {ghl_contact_id}", 
+        await log("error", f"Compile Messages -- Token fetch failed -- {ghl_contact_id}", 
             scope="Compile Messages", ghl_contact_id=ghl_contact_id)
         return []
 
@@ -164,7 +164,7 @@ async def retrieve_and_compile_messages(ghl_convo_id, ghl_recent_message, ghl_co
             }
         ) as response:
             if response.status != 200:
-                log("error", f"Compile Messages -- API Call Failed -- {ghl_contact_id}", 
+                await log("error", f"Compile Messages -- API Call Failed -- {ghl_contact_id}", 
                     scope="Compile Messages", ghl_contact_id=ghl_contact_id,
                     status_code=response.status, response=await response.text())
                 return []
@@ -172,7 +172,7 @@ async def retrieve_and_compile_messages(ghl_convo_id, ghl_recent_message, ghl_co
             data = await response.json()
             all_messages = data.get("messages", {}).get("messages", [])
             if not all_messages:
-                log("error", f"Compile Messages -- No messages found -- {ghl_contact_id}", 
+                await log("error", f"Compile Messages -- No messages found -- {ghl_contact_id}", 
                     scope="Compile Messages", api_response=data)
                 return []
 
@@ -217,7 +217,7 @@ async def process_message_response(thread_id, run_id, ghl_contact_id):
     )
     
     if not messages.data:
-        log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
+        await log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
             scope="AI Message", run_id=run_id, thread_id=thread_id, 
             response=messages, ghl_contact_id=ghl_contact_id)
         return None
@@ -242,12 +242,11 @@ async def process_function_response(thread_id, run_id, run_response, ghl_contact
 
     action = "handoff" if "handoff" in function_args else "stop"
     
-    log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
+    await log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
         scope="AI Function", tool_call_id=tool_call.id, run_id=run_id, 
         thread_id=thread_id, function=function_args, selected_action=action, 
-        ghl_contact_id=ghl_contact_id)
-    
-    return action
+        
+
 
         ghl_contact_id=ghl_contact_id)
     
