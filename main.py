@@ -1,4 +1,4 @@
-import redis
+from redis import Redis
 import os
 
 redis_url = os.getenv("REDIS_URL")
