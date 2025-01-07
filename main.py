@@ -47,24 +47,7 @@ async def trigger_response(request: Request):
         log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal server error"}, status_code=500)
 
-def listen_to_keyspace():
-    """Listen for Redis keyspace notifications and log received data."""
-    try:
-        pubsub = redis_client.pubsub()
-        pubsub.psubscribe("__keyevent@0__:expired")
-        log("info", "Subscribed to keyspace notifications")
-    
-        for message in pubsub.listen():
-            if message["type"] == "pmessage":
-                log("info", "Keyspace notif received", data=message)
-    except Exception as e:
-        log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
 
-
-# Run the listener in a separate thread
-listener_thread = Thread(target=listen_to_keyspace, daemon=True)
-listener_thread.start()
 
 
 
