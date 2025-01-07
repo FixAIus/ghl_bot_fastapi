@@ -8,6 +8,7 @@ from threading import Thread
 from functions import (
     validate_request_data,
     fetch_ghl_access_token,
+    strify_input_json
     log,
     GoHighLevelAPI
 )
@@ -28,9 +29,8 @@ async def trigger_response(request: Request):
             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
         # Add validated fields to Redis with TTL
-        redis_key = f"contact:{validated_fields['ghl_contact_id']}"
-        result = redis_client.hset(redis_key, mapping=validated_fields)
-        redis_client.expire(redis_key, 30)
+        redis_key = strify_input_json(validated_fields)
+        result = redis_client.setex(redis_key, 30, "0")
 
         if result:
             log("info", f"Redis Queue --- Time Delay Started --- {validated_fields['ghl_contact_id']}",
