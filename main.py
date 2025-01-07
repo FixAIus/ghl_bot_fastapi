@@ -4,6 +4,10 @@ import os
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 
+def log(level, msg, **kwargs):
+    """Centralized logger for structured JSON logging."""
+    print(json.dumps({"level": level, "msg": msg, **kwargs}))
+
 def listen_to_keyspace():
     """Listen for Redis keyspace notifications and log received data."""
     # Subscribe to keyspace notifications
