@@ -24,6 +24,6 @@ def listen_to_keyspace():
 
 if __name__ == "__main__":
     # Enable keyspace notifications in Redis (ensure this is set)
-    #redis_client.config_set("notify-keyspace-events", "Ex")
-    #log("info", "just ran config_set()")
+    redis_client.config_set("notify-keyspace-events", "Ex")
+    log("info", "just ran config_set()")
     listen_to_keyspace()
