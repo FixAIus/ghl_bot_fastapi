@@ -8,7 +8,7 @@ from threading import Thread
 from functions import (
     validate_request_data,
     fetch_ghl_access_token,
-    strify_input_json
+    strify_input_json,
     log,
     GoHighLevelAPI
 )
