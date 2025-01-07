@@ -8,6 +8,21 @@ def log(level, msg, **kwargs):
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
 
+def strify_input_json(input_json):
+    """Format the input JSON into a consistent key format."""
+    fields_order = [
+        "ghl_contact_id",
+        "ghl_convo_id",
+        "ghl_recent_message",
+        "thread_id",
+        "assistant_id",
+    ]
+    ordered_data = {field: input_json[field] for field in fields_order}
+    formatted_string = json.dumps(ordered_data, separators=(",", ":"), sort_keys=False)
+
+    return formatted_string
+
+
 def validate_request_data(data):
     """
     Validate request data, ensure required fields are present, and handle conversation ID retrieval.
