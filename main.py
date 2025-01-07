@@ -35,12 +35,12 @@ async def trigger_response(request: Request):
         if result:
             log("info", f"Redis Queue --- Time Delay Started --- {validated_fields['ghl_contact_id']}",
                 scope="Redis Queue", num_fields_added=result,
-                fields_added=json.dumps(validated_fields),
+                fields_added=validated_fields,
                 ghl_contact_id=validated_fields['ghl_contact_id'])
         else:
             log("info", f"Redis Queue --- Time Delay Reset --- {validated_fields['ghl_contact_id']}",
                 scope="Redis Queue", num_fields_added=result,
-                fields_added=json.dumps(validated_fields),
+                fields_added=validated_fields,
                 ghl_contact_id=validated_fields['ghl_contact_id'])
 
         return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
