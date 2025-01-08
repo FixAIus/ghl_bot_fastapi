@@ -3,6 +3,7 @@ from redis import Redis
 import os
 import json
 from openai import OpenAI
+from flask import jsonify, request  # For web responses if using Flask
 
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
