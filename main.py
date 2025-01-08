@@ -33,6 +33,7 @@ def listen_to_keyspace():
 
                 # Log the reconstructed JSON object
                 log("info", "Keyspace notification received and parsed", data=json_data)
+                advance_convo(json_data)
             except json.JSONDecodeError as e:
                 log("error", "Failed to decode expired key as JSON", error=str(e), raw_data=message["data"])
 
