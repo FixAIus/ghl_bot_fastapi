@@ -8,111 +8,129 @@ def log(level, msg, **kwargs):
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
 
-def validate_request_data(data):
+
+def move_convo_forward():
     """
-    Validate request data, ensure required fields are present, and handle conversation ID retrieval.
-    Returns validated fields dictionary or None if validation fails.
+    Main endpoint for handling conversation flow between user and AI assistant.
+    Processes incoming messages and sends appropriate AI responses or function calls.
     """
-    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "ghl_recent_message"]
-    fields = {field: data.get(field) for field in required_fields}
-    fields["ghl_convo_id"] = data.get("ghl_convo_id")
+    try:
+        # Initialize GHL API
+        ghl_api = GoHighLevelAPI(location_id=os.getenv('GHL_LOCATION_ID'))
 
-    missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
-    if missing_fields:
-        log("error", f"Validation -- Missing {', '.join(missing_fields)} -- {fields['ghl_contact_id']}",
-            ghl_contact_id=fields["ghl_contact_id"], scope="Validation", received_fields=fields)
-        return None
+        # Extract required fields from the request
+        data = request.json
+        ghl_convo_id = data["ghl_convo_id"]
+        ghl_contact_id = data["ghl_contact_id"]
+        recent_automated_message_id = data["recent_automated_message_id"]
+        thread_id = data["thread_id"]
+        assistant_id = data["assistant_id"]
 
-    if not fields["ghl_convo_id"] or fields["ghl_convo_id"] in ["", "null"]:
-        ghl_api = GoHighLevelAPI(location_id="your_location_id")
-        fields["ghl_convo_id"] = ghl_api.get_conversation_id(fields["ghl_contact_id"])
-        if not fields["ghl_convo_id"]:
-            return None
+        # Retrieve messages using GHL API
+        all_messages = ghl_api.retrieve_messages(contact_id=ghl_contact_id)
+        if not all_messages:
+            return jsonify({"error": "No messages retrieved"}), 400
 
-    return fields
+        # Compile new messages
+        new_messages = []
+        for msg in all_messages:
+            if msg["direction"] == "inbound":
+                new_messages.insert(0, {"role": "user", "content": msg["body"]})
+            if msg["id"] == recent_automated_message_id:
+                break
+
+        # Run AI thread and get response
+        run_response, run_status, run_id = run_ai_thread(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            messages=new_messages,
+            ghl_contact_id=ghl_contact_id
+        )
+
+        # Handle AI response
+        if run_status == "completed":
+            process_message_response(
+                thread_id=thread_id,
+                run_id=run_id,
+                ghl_contact_id=ghl_contact_id,
+                ghl_api=ghl_api
+            )
+
+        elif run_status == "requires_action":
+            process_function_response(
+                thread_id=thread_id,
+                run_id=run_id,
+                run_response=run_response,
+                ghl_contact_id=ghl_contact_id,
+                ghl_api=ghl_api
+            )
+
+        else:
+            log("error", f"AI Run -- Run Failed -- {ghl_contact_id}", 
+                scope="AI Run", run_status=run_status, run_id=run_id, 
+                thread_id=thread_id, run_response=run_response, ghl_contact_id=ghl_contact_id)
+            return jsonify({"error": f"Run {run_status}"}), 400
+
+        # Return success response
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        # Capture and log the traceback
+        tb_str = traceback.format_exc()
+        log("error", "GENERAL -- Unhandled exception occurred with traceback",
+            scope="General", error=str(e), traceback=tb_str)
+        return jsonify({"error": str(e), "traceback": tb_str}), 500
 
 
-def log(level, msg, **kwargs):
-    """Centralized logger for structured JSON logging."""
-    print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
-class GoHighLevelAPI:
-    BASE_URL = "https://services.leadconnectorhq.com"
-    HEADERS = {
-        "Version": "2021-04-15",
-        "Accept": "application/json"
-    }
 
-    def __init__(self, location_id):
-        self.location_id = location_id
+def process_function_response(thread_id, run_id, run_response, ghl_contact_id, ghl_api):
+    """Process function call response from AI."""
+    tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
+    function_args = json.loads(tool_call.function.arguments)
+    openai_client.beta.threads.runs.submit_tool_outputs(
+        thread_id=thread_id,
+        run_id=run_id,
+        tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
+    )
 
-    def get_conversation_id(self, contact_id):
-        """Retrieve conversation ID from GHL API."""
-        token = fetch_ghl_access_token()
-        if not token:
-            log("error", "Get convo ID -- Token fetch failed", contact_id=contact_id)
-            return None
+    action = "handoff" if "handoff" in function_args else "stop"
 
-        url = f"{self.BASE_URL}/conversations/search"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        params = {"locationId": self.location_id, "contactId": contact_id}
+    ghl_api.send_message(
+        message=f"Action triggered: {action}",
+        contact_id=ghl_contact_id
+    )
 
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            log("error", "Get convo ID API call failed", contact_id=contact_id, \
-                status_code=response.status_code, response=response.text)
-            return None
+    log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
+        scope="AI Function", tool_call_id=tool_call.id, run_id=run_id, 
+        thread_id=thread_id, function=function_args, selected_action=action, 
+        ghl_contact_id=ghl_contact_id)
 
-        conversations = response.json().get("conversations", [])
-        if not conversations:
-            log("error", "No Convo ID found", contact_id=contact_id, response=response.text)
-            return None
 
-        return conversations[0].get("id")
 
-    def retrieve_messages(self, convo_id, contact_id):
-        """Retrieve messages from GHL API."""
-        token = fetch_ghl_access_token()
-        if not token:
-            log("error", "Retrieve Messages -- Token fetch failed", contact_id=contact_id)
-            return []
 
-        url = f"{self.BASE_URL}/conversations/{convo_id}/messages"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+def process_message_response(thread_id, run_id, ghl_contact_id, ghl_api):
+    """Process completed message response from AI."""
+    ai_messages = openai_client.beta.threads.messages.list(thread_id=thread_id, run_id=run_id).data
+    if not ai_messages:
+        log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
+            scope="AI Message", run_id=run_id, thread_id=thread_id, 
+            response=ai_messages, ghl_contact_id=ghl_contact_id)
+        return
 
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            log("error", "Retrieve Messages -- API Call Failed", \
-                contact_id=contact_id, convo_id=convo_id, \
-                status_code=response.status_code, response=response.text)
-            return []
+    ai_content = ai_messages[-1].content[0].text.value
+    if "【" in ai_content and "】" in ai_content:
+        ai_content = ai_content[:ai_content.find("【")] + ai_content[ai_content.find("】") + 1:]
 
-        messages = response.json().get("messages", {}).get("messages", [])
-        if not messages:
-            log("error", "Retrieve Messages -- No messages found", contact_id=contact_id, \
-                convo_id=convo_id, api_response=response.json())
-            return []
+    ghl_api.send_message(
+        message=ai_content,
+        contact_id=ghl_contact_id
+    )
 
-        return messages
+    log("info", f"AI Message -- Successfully retrieved AI response -- {ghl_contact_id}", 
+        scope="AI Message", run_id=run_id, thread_id=thread_id, 
+        ai_message=ai_content, ghl_contact_id=ghl_contact_id)
 
-    def update_contact(self, contact_id, update_data):
-        """Update contact information in GHL API."""
-        token = fetch_ghl_access_token()
-        if not token:
-            log("error", "Update Contact -- Token fetch failed", contact_id=contact_id)
-            return None
-
-        url = f"{self.BASE_URL}/contacts/{contact_id}"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-
-        response = requests.put(url, headers=headers, json=update_data)
-        if response.status_code != 200:
-            log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
-                status_code=response.status_code, response=response.text)
-            return None
-
-        log("info", "Update Contact -- Successfully updated", contact_id=contact_id, response=response.json())
-        return response.json()
 
 
 def fetch_ghl_access_token():
@@ -149,3 +167,126 @@ def fetch_ghl_access_token():
             scope="GHL Access", error=str(e), 
             traceback=traceback.format_exc())
     return None
+
+
+class GoHighLevelAPI:
+    BASE_URL = "https://services.leadconnectorhq.com"
+    HEADERS = {
+        "Version": "2021-04-15",
+        "Accept": "application/json"
+    }
+
+    def __init__(self, location_id):
+        self.location_id = location_id
+
+    def get_conversation_id(self, contact_id):
+        """Retrieve conversation ID from GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/conversations/search"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        params = {"locationId": self.location_id, "contactId": contact_id}
+
+        response = requests.get(url, headers=headers, params=params)
+        if not response.status_code // 100 == 2:
+            log("error", "Get convo ID API call failed", contact_id=contact_id, \
+                status_code=response.status_code, response=response.text)
+            return None
+
+        conversations = response.json().get("conversations", [])
+        if not conversations:
+            log("error", "No Convo ID found", contact_id=contact_id, response=response.text)
+            return None
+
+        return conversations[0].get("id")
+
+    def retrieve_messages(self, contact_id, limit=50, type="TYPE_INSTAGRAM"):
+        """Retrieve messages from GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return []
+
+        url = f"{self.BASE_URL}/conversations/{convo_id}/messages"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        params = {"limit": limit, "type": type}
+
+        response = requests.get(url, headers=headers, params=params)
+        if not response.status_code // 100 == 2:
+            log("error", "Retrieve Messages -- API Call Failed", \
+                contact_id=contact_id, convo_id=convo_id, \
+                status_code=response.status_code, response=response.text)
+            return []
+
+        messages = response.json().get("messages", {}).get("messages", [])
+        if not messages:
+            log("error", "Retrieve Messages -- No messages found", contact_id=contact_id, \
+                convo_id=convo_id, api_response=response.json())
+            return []
+
+        return messages
+
+    def update_contact(self, contact_id, update_data):
+        """Update contact information in GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/contacts/{contact_id}"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+
+        response = requests.put(url, headers=headers, json=update_data)
+        if not response.status_code // 100 == 2:
+            log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
+                status_code=response.status_code, response=response.text)
+            return None
+
+        log("info", "Update Contact -- Successfully updated", contact_id=contact_id, response=response.json())
+        return response.json()
+
+    def send_message(self, message, contact_id, attachments=[], type="IG"):
+        """Send a message to a user via GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/conversations/messages"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        payload = {
+            "locationId": self.location_id,
+            "contactId": contact_id,
+            "message": message,
+            "attachments": attachments,
+            "type": type
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        if not response.status_code // 100 == 2:
+            log("error", "Send Message -- API Call Failed", contact_id=contact_id, \
+                status_code=response.status_code, response=response.text)
+            return None
+
+        log("info", "Send Message -- Successfully sent", contact_id=contact_id, response=response.json())
+        return response.json()
+
+    def remove_tag(self, contact_id, tags):
+        """Remove tags from a contact in GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        payload = {
+            "tags": tags
+        }
+
+        response = requests.delete(url, headers=headers, json=payload)
+        if not response.status_code // 100 == 2:
+            log("error", "Remove Tag -- API Call Failed", contact_id=contact_id, \
+                tags=tags, status_code=response.status_code, response=response.text)
+            return None
+
+        log("info", "Remove Tag -- Successfully removed tags", contact_id=contact_id, tags=tags, response=response.json())
+        return response.json()
