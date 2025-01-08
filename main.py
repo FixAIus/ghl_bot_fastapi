@@ -13,7 +13,6 @@ from openai import OpenAI  # OpenAI API client
 from functions import (
     move_convo_forward,  # The main conversation handler
     log,  # The centralized logger
-    listen_to_keyspace,  # Redis keyspace notification listener
     GoHighLevelAPI,  # The GHL API wrapper class
     fetch_ghl_access_token,  # Token fetcher
     process_message_response,  # AI message processor
