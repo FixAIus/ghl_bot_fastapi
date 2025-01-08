@@ -5,9 +5,7 @@ import json
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 
-def log(level, msg, **kwargs):
-    """Centralized logger for structured JSON logging."""
-    print(json.dumps({"level": level, "msg": msg, **kwargs}))
+
 
 def listen_to_keyspace():
     """Listen for Redis keyspace notifications and log received data."""
@@ -25,7 +23,7 @@ def listen_to_keyspace():
                 json_data = json.loads(expired_key)
 
                 # Log the reconstructed JSON object
-                log("info", "Keyspace notification received and parsed", data=json_data)
+                move_convo_forward(data)
             except json.JSONDecodeError as e:
                 log("error", "Failed to decode expired key as JSON", error=str(e), raw_data=message["data"])
 
