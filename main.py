@@ -2,9 +2,12 @@ from redis import Redis
 import traceback
 import os
 import json
+from openai import OpenAI
 from functions import (
     log,
     ghl_api,
+    GoHighLevelAPI,
+    openai_client,
     fetch_ghl_access_token,
     advance_convo,
     compile_messages
