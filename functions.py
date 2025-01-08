@@ -28,7 +28,7 @@ def validate_request_data(data):
     Validate request data, ensure required fields are present, and handle conversation ID retrieval.
     Returns validated fields dictionary or None if validation fails.
     """
-    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "ghl_recent_message"]
+    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id"]
     fields = {field: data.get(field) for field in required_fields}
     fields["ghl_convo_id"] = data.get("ghl_convo_id")
 
