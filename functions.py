@@ -13,7 +13,7 @@ def strify_input_json(input_json):
     fields_order = [
         "ghl_contact_id",
         "ghl_convo_id",
-        "ghl_recent_message",
+        "recent_automated_message_id",
         "thread_id",
         "assistant_id",
     ]
