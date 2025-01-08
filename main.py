@@ -42,7 +42,7 @@ def listen_to_keyspace():
                 json_data = json.loads(expired_key)
 
                 # Log the reconstructed JSON object
-                move_convo_forward(data)
+                move_convo_forward(json_data)
             except json.JSONDecodeError as e:
                 log("error", "Failed to decode expired key as JSON", error=str(e), raw_data=message["data"])
 
