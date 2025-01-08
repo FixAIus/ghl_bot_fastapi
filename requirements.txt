@@ -4,3 +4,10 @@ requests==2.32.3
 redis==5.2.1
 openai==1.55.3
 Flask==1.1.2
+
+
+gunicorn==20.0.4
+itsdangerous==1.1.0
+Jinja2==2.11.3
+MarkupSafe==1.1.1
+Werkzeug==1.0.1
