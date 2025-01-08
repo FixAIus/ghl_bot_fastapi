@@ -5,8 +5,8 @@ import json
 from openai import OpenAI
 from functions import (
     log,
-    ghl_api,
     GoHighLevelAPI,
+    ghl_api,
     openai_client,
     fetch_ghl_access_token,
     advance_convo,
