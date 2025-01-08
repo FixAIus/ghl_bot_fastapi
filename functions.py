@@ -8,7 +8,6 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 ghl_api = GoHighLevelAPI()
 
 
-
 def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
@@ -16,23 +15,26 @@ def log(level, msg, **kwargs):
 
 
 def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
-    """Fetch and compile messages for processing."""
-    all_messages = ghl_api.retrieve_messages(ghl_convo_id)
-
-    #delete
-    log("info", "messages grasped", all_messages=all_messages)
+    try:
+        """Fetch and compile messages for processing."""
+        all_messages = ghl_api.retrieve_messages(ghl_convo_id)
     
-    new_messages = []
-
-    for msg in all_messages:
-        if msg["id"] == recent_automated_message_id:
-            break
-        if msg["direction"] == "inbound":
-            new_messages.insert(0, {"role": "user", "content": msg["body"]})
-
-    log("info", "Messages compiled", contact_id=ghl_contact_id, compiled_messages=new_messages)
-    return new_messages
-
+        #delete
+        log("info", "messages grasped", all_messages=all_messages)
+        
+        new_messages = []
+    
+        for msg in all_messages:
+            if msg["id"] == recent_automated_message_id:
+                break
+            if msg["direction"] == "inbound":
+                new_messages.insert(0, {"role": "user", "content": msg["body"]})
+    
+        log("info", "Messages compiled", contact_id=ghl_contact_id, compiled_messages=new_messages)
+        return new_messages
+        
+    except Exception as e:
+        log("error", "Compile Messages Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
     """Run the AI thread and retrieve its response."""
@@ -92,27 +94,31 @@ def tier1_action(ghl_contact_id):
 
 
 def advance_convo(convo_data):
-    """Main function to advance the conversation."""
-    ghl_contact_id = convo_data.get("ghl_contact_id")
-    ghl_convo_id = convo_data.get("ghl_convo_id")
-    thread_id = convo_data.get("thread_id")
-    assistant_id = convo_data.get("assistant_id")
-    recent_automated_message_id = convo_data.get("recent_automated_message_id")
+    try:
+        """Main function to advance the conversation."""
+        ghl_contact_id = convo_data.get("ghl_contact_id")
+        ghl_convo_id = convo_data.get("ghl_convo_id")
+        thread_id = convo_data.get("thread_id")
+        assistant_id = convo_data.get("assistant_id")
+        recent_automated_message_id = convo_data.get("recent_automated_message_id")
 
-    # Compile messages
-    messages = compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
-    if not messages:
-        log("error", "Message compilation failed", contact_id=ghl_contact_id)
-        return
+        # Compile messages
+        messages = compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
+        if not messages:
+            log("error", "Message compilation failed", contact_id=ghl_contact_id)
+            return
+    
+        # Run AI thread
+        run_response, status, run_id = run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id)
+        if not run_response:
+            log("error", "AI thread failed", contact_id=ghl_contact_id)
+            return
+    
+        # Process AI response
+        process_run_response(run_response, ghl_contact_id)
 
-    # Run AI thread
-    run_response, status, run_id = run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id)
-    if not run_response:
-        log("error", "AI thread failed", contact_id=ghl_contact_id)
-        return
-
-    # Process AI response
-    process_run_response(run_response, ghl_contact_id)
+    except Exception as e:
+        log("error", "Advance Convo Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 
