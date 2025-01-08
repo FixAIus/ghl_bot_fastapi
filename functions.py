@@ -141,21 +141,24 @@ def log(level, msg, **kwargs):
 def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
     try:
         """Fetch and compile messages for processing."""
-        all_messages = ghl_api.retrieve_messages(ghl_convo_id, ghl_contact_id)
-    
-        #delete
-        log("info", "messages grasped", all_messages=all_messages)
+        all_messages = ghl_api.retrieve_messages(ghl_convo_id, ghl_contact_id)        
+
+        if all_messages:
+            new_messages = []
+            found_recent = False
+            for msg in all_messages:
+                if msg["id"] == recent_automated_message_id:
+                    found_recent = True
+                    break
+                if msg["direction"] == "inbound":
+                    new_messages.insert(0, {"role": "user", "content": msg["body"]})
         
-        new_messages = []
-    
-        for msg in all_messages:
-            if msg["id"] == recent_automated_message_id:
-                break
-            if msg["direction"] == "inbound":
-                new_messages.insert(0, {"role": "user", "content": msg["body"]})
-    
-        log("info", "Messages compiled", contact_id=ghl_contact_id, compiled_messages=new_messages)
-        return new_messages
+            log("info", f"Compile Messages -- Success -- {contact_id}", contact_id=ghl_contact_id, compiled_messages=new_messages, all_messages=all_messages)
+            if found_recent:
+                return new_messages
+            log("error", f"Compile Messages -- No message identifier found -- {ghl_contact_id}", contact_id=ghl_contact_id, 
+                all_messages=all_messages, msg_id=recent_automated_message_id)
+        return None
         
     except Exception as e:
         log("error", "Compile Messages Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
@@ -229,7 +232,6 @@ def advance_convo(convo_data):
         # Compile messages
         messages = compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
         if not messages:
-            log("error", "Message compilation failed", contact_id=ghl_contact_id)
             return
     
         # Run AI thread
