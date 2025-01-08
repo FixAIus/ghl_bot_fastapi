@@ -9,7 +9,7 @@ def log(level, msg, **kwargs):
 
 
 
-def move_convo_forward():
+def move_convo_forward(data):
     """
     Main endpoint for handling conversation flow between user and AI assistant.
     Processes incoming messages and sends appropriate AI responses or function calls.
@@ -19,7 +19,6 @@ def move_convo_forward():
         ghl_api = GoHighLevelAPI(location_id=os.getenv('GHL_LOCATION_ID'))
 
         # Extract required fields from the request
-        data = request.json
         ghl_convo_id = data["ghl_convo_id"]
         ghl_contact_id = data["ghl_contact_id"]
         recent_automated_message_id = data["recent_automated_message_id"]
