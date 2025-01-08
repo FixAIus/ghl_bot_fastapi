@@ -2,6 +2,10 @@ import traceback
 from redis import Redis
 import os
 import json
+from openai import OpenAI
+
+
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
@@ -80,6 +84,16 @@ def move_convo_forward(data):
             scope="General", error=str(e), traceback=tb_str)
         return jsonify({"error": str(e), "traceback": tb_str}), 500
 
+
+def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
+    """Run AI thread and get initial response."""
+    run_response = openai_client.beta.threads.runs.create_and_poll(
+        thread_id=thread_id,
+        assistant_id=assistant_id,
+        additional_messages=messages
+    )
+    run_status, run_id = run_response.status, run_response.id    
+    return run_response, run_status, run_id
 
 
 
