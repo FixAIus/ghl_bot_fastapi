@@ -1,6 +1,14 @@
 from redis import Redis
+import traceback
 import os
 import json
+from functions import (
+    log,
+    ghl_api,
+    fetch_ghl_access_token,
+    advance_convo,
+    compile_messages
+)
 
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
