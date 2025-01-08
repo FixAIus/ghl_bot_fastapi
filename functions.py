@@ -37,7 +37,7 @@ class GoHighLevelAPI:
 
         return conversations[0].get("id")
 
-    def retrieve_messages(self, contact_id, limit=8, type="TYPE_INSTAGRAM"):
+    def retrieve_messages(self, convo_id, limit=8, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
         token = fetch_ghl_access_token()
         if not token:
