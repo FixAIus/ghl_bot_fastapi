@@ -1,12 +1,13 @@
 import traceback
-from redis import Redis
-import os
+import requests
 import json
+import os
 from openai import OpenAI
-from flask import jsonify, request  # For web responses if using Flask
-
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+ghl_api = GoHighLevelAPI()
+
+
 
 def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
@@ -14,27 +15,24 @@ def log(level, msg, **kwargs):
 
 
 
-
-
-import requests
-import json
-import os
-from openai import OpenAI
-
-
-ghl_api = GoHighLevelAPI()
-
-
-def compile_messages(ghl_contact_id, ghl_convo_id):
+def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
     """Fetch and compile messages for processing."""
-    messages = ghl_api.retrieve_messages(ghl_convo_id)
-    if not messages:
-        log("error", "No messages retrieved from GHL", contact_id=ghl_contact_id)
-        return []
+    all_messages = ghl_api.retrieve_messages(ghl_convo_id)
 
-    compiled = [{"text": msg["message"], "type": msg["type"]} for msg in messages]
-    log("info", "Messages compiled", contact_id=ghl_contact_id, compiled_messages=compiled)
-    return compiled
+    #delete
+    log("info", "messages grasped", all_messages=all_messages)
+    
+    new_messages = []
+
+    for msg in all_messages:
+        if msg["id"] == recent_automated_message_id:
+            break
+        if msg["direction"] == "inbound":
+            new_messages.insert(0, {"role": "user", "content": msg["body"]})
+
+    log("info", "Messages compiled", contact_id=ghl_contact_id, compiled_messages=new_messages)
+    return new_messages
+
 
 def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
     """Run the AI thread and retrieve its response."""
@@ -46,8 +44,9 @@ def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
         )
         return run_response, run_response.status, run_response.id
     except Exception as e:
-        log("error", "AI thread run failed", contact_id=ghl_contact_id, error=str(e))
+        log("error", "AI thread run failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
         return None, None, None
+
 
 def process_run_response(run_response, ghl_contact_id):
     """Handle AI response and execute actions."""
@@ -72,21 +71,25 @@ def process_run_response(run_response, ghl_contact_id):
     else:
         log("error", "Unhandled response status", contact_id=ghl_contact_id, status=status)
 
+
 def handoff_action(ghl_contact_id):
     """Handle handoff logic."""
     ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
     ghl_api.send_message("A team member will assist you shortly.", ghl_contact_id)
     log("info", "Handoff action completed", contact_id=ghl_contact_id)
 
+
 def end_action(ghl_contact_id):
     """Handle conversation end logic."""
     ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
     log("info", "Conversation ended", contact_id=ghl_contact_id)
 
+
 def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
     ghl_api.send_message("Here is the information for Tier 1 resources.", ghl_contact_id)
     log("info", "Tier 1 action completed", contact_id=ghl_contact_id)
+
 
 def advance_convo(convo_data):
     """Main function to advance the conversation."""
@@ -94,9 +97,10 @@ def advance_convo(convo_data):
     ghl_convo_id = convo_data.get("ghl_convo_id")
     thread_id = convo_data.get("thread_id")
     assistant_id = convo_data.get("assistant_id")
+    recent_automated_message_id = convo_data.get("recent_automated_message_id")
 
     # Compile messages
-    messages = compile_messages(ghl_contact_id, ghl_convo_id)
+    messages = compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
     if not messages:
         log("error", "Message compilation failed", contact_id=ghl_contact_id)
         return
@@ -159,7 +163,7 @@ class GoHighLevelAPI:
         "Accept": "application/json"
     }
 
-    def __init__(self, location_id):
+    def __init__(self, location_id=os.getenv('GHL_LOCATION_ID')):
         self.location_id = location_id
 
     def get_conversation_id(self, contact_id):
@@ -185,7 +189,7 @@ class GoHighLevelAPI:
 
         return conversations[0].get("id")
 
-    def retrieve_messages(self, contact_id, limit=50, type="TYPE_INSTAGRAM"):
+    def retrieve_messages(self, contact_id, limit=8, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
         token = fetch_ghl_access_token()
         if not token:
@@ -280,154 +284,6 @@ class GoHighLevelAPI:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def move_convo_forward(data):
-    """
-    Main endpoint for handling conversation flow between user and AI assistant.
-    Processes incoming messages and sends appropriate AI responses or function calls.
-    """
-    try:
-        # Initialize GHL API
-        ghl_api = GoHighLevelAPI(location_id=os.getenv('GHL_LOCATION_ID'))
-
-        # Extract required fields from the request
-        ghl_convo_id = data["ghl_convo_id"]
-        ghl_contact_id = data["ghl_contact_id"]
-        recent_automated_message_id = data["recent_automated_message_id"]
-        thread_id = data["thread_id"]
-        assistant_id = data["assistant_id"]
-
-        # Retrieve messages using GHL API
-        all_messages = ghl_api.retrieve_messages(contact_id=ghl_contact_id)
-        if not all_messages:
-            return jsonify({"error": "No messages retrieved"}), 400
-
-        # Compile new messages
-        new_messages = []
-        for msg in all_messages:
-            if msg["direction"] == "inbound":
-                new_messages.insert(0, {"role": "user", "content": msg["body"]})
-            if msg["id"] == recent_automated_message_id:
-                break
-
-        # Run AI thread and get response
-        run_response, run_status, run_id = run_ai_thread(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            messages=new_messages,
-            ghl_contact_id=ghl_contact_id
-        )
-
-        # Handle AI response
-        if run_status == "completed":
-            process_message_response(
-                thread_id=thread_id,
-                run_id=run_id,
-                ghl_contact_id=ghl_contact_id,
-                ghl_api=ghl_api
-            )
-
-        elif run_status == "requires_action":
-            process_function_response(
-                thread_id=thread_id,
-                run_id=run_id,
-                run_response=run_response,
-                ghl_contact_id=ghl_contact_id,
-                ghl_api=ghl_api
-            )
-
-        else:
-            log("error", f"AI Run -- Run Failed -- {ghl_contact_id}", 
-                scope="AI Run", run_status=run_status, run_id=run_id, 
-                thread_id=thread_id, run_response=run_response, ghl_contact_id=ghl_contact_id)
-            return jsonify({"error": f"Run {run_status}"}), 400
-
-        # Return success response
-        return jsonify({"status": "success"}), 200
-
-    except Exception as e:
-        # Capture and log the traceback
-        tb_str = traceback.format_exc()
-        log("error", "GENERAL -- Unhandled exception occurred with traceback",
-            scope="General", error=str(e), traceback=tb_str)
-        return jsonify({"error": str(e), "traceback": tb_str}), 500
-
-
-def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
-    """Run AI thread and get initial response."""
-    run_response = openai_client.beta.threads.runs.create_and_poll(
-        thread_id=thread_id,
-        assistant_id=assistant_id,
-        additional_messages=messages
-    )
-    run_status, run_id = run_response.status, run_response.id    
-    return run_response, run_status, run_id
-
-
-
-def process_function_response(thread_id, run_id, run_response, ghl_contact_id, ghl_api):
-    """Process function call response from AI."""
-    tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
-    function_args = json.loads(tool_call.function.arguments)
-    openai_client.beta.threads.runs.submit_tool_outputs(
-        thread_id=thread_id,
-        run_id=run_id,
-        tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
-    )
-
-    action = "handoff" if "handoff" in function_args else "stop"
-
-    ghl_api.send_message(
-        message=f"Action triggered: {action}",
-        contact_id=ghl_contact_id
-    )
-
-    log("info", f"AI Function -- Processed function call -- {ghl_contact_id}", 
-        scope="AI Function", tool_call_id=tool_call.id, run_id=run_id, 
-        thread_id=thread_id, function=function_args, selected_action=action, 
-        ghl_contact_id=ghl_contact_id)
-
-
-
-
-def process_message_response(thread_id, run_id, ghl_contact_id, ghl_api):
-    """Process completed message response from AI."""
-    ai_messages = openai_client.beta.threads.messages.list(thread_id=thread_id, run_id=run_id).data
-    if not ai_messages:
-        log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
-            scope="AI Message", run_id=run_id, thread_id=thread_id, 
-            response=ai_messages, ghl_contact_id=ghl_contact_id)
-        return
-
-    ai_content = ai_messages[-1].content[0].text.value
-    if "【" in ai_content and "】" in ai_content:
-        ai_content = ai_content[:ai_content.find("【")] + ai_content[ai_content.find("】") + 1:]
-
-    ghl_api.send_message(
-        message=ai_content,
-        contact_id=ghl_contact_id
-    )
-
-    log("info", f"AI Message -- Successfully retrieved AI response -- {ghl_contact_id}", 
-        scope="AI Message", run_id=run_id, thread_id=thread_id, 
-        ai_message=ai_content, ghl_contact_id=ghl_contact_id)
 
 
 
