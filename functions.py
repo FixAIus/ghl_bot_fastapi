@@ -101,8 +101,7 @@ class GoHighLevelAPI:
 
     def get_conversation_id(self, contact_id):
         """Retrieve conversation ID from GHL API."""
-        #token = fetch_ghl_access_token()
-        token='e'
+        token = fetch_ghl_access_token()
         if not token:
             return None
 
@@ -167,7 +166,8 @@ class GoHighLevelAPI:
 
     def send_message(self, message, contact_id, attachments=[], type="IG"):
         """Send a message to a user via GHL API."""
-        token = fetch_ghl_access_token()
+        #token = fetch_ghl_access_token()
+        token='e'
         if not token:
             return None
 
