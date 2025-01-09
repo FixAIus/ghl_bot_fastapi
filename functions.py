@@ -166,8 +166,7 @@ class GoHighLevelAPI:
 
     def send_message(self, message, contact_id, attachments=[], type="IG"):
         """Send a message to a user via GHL API."""
-        #token = fetch_ghl_access_token()
-        token='e'
+        token = fetch_ghl_access_token()
         if not token:
             return None
 
