@@ -161,7 +161,7 @@ class GoHighLevelAPI:
             log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
-        log("error", "heres the response", response=response.json(), status=response.status_code)
+
         return response.json()
 
     def send_message(self, message, contact_id, attachments=[], type="IG"):
