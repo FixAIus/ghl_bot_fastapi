@@ -67,37 +67,32 @@ async def trigger_response(request: Request):
 async def initialize(request: Request):
     try:
         data = await request.json()
-        log("info", "Initialization -- Start", scope="Initialize", input=data)
+        await log("info", "Initialization -- Start", scope="Initialize", input=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
 
         if not (ghl_contact_id and first_message and bot_filter_tag):
-            log("error", "Missing required fields -- Canceling bot", 
-                scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
-            #Insert Failure handoff
+            await log("error", "Missing required fields -- Canceling bot", 
+                      scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
         # Step 1: Create a new thread in OpenAI
-        thread_response = openai_client.beta.threads.create(
+        thread_response = await openai_client.beta.threads.create(
             messages=[{"role": "assistant", "content": first_message}]
         )
         thread_id = thread_response.id
         if not thread_id or thread_id in ["", "null", None]:
-            #Insert Failure handoff
-            log("error", "Failed to start thread -- Canceling bot", scope="Initialize", thread_response=thread_response, data=data)
+            await log("error", "Failed to start thread -- Canceling bot", scope="Initialize", thread_response=thread_response, data=data)
             return JSONResponse(content={"error": "Failed to start thread"}, status_code=400)
 
-        
         # Step 2: Get convo_id and send updates to GHL contact
-        convo_id = ghl_api.get_conversation_id(ghl_contact_id)
+        convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
         if not convo_id:
-            #Insert Failure handoff
             return JSONResponse(content={"error": "Failed to get convo id"}, status_code=400)
-            
-        message_response = ghl_api.send_message(first_message, ghl_contact_id)
+
+        message_response = await ghl_api.send_message(first_message, ghl_contact_id)
         if not message_response:
-            #Insert failure handoff
             return JSONResponse(content={"error": "Failed to send message"}, status_code=400)
         message_id = message_response["messageId"]
 
@@ -108,24 +103,21 @@ async def initialize(request: Request):
                 {"key": "recent_automated_message_id", "field_value": message_id}
             ]
         }
-        update_response = ghl_api.update_contact(ghl_contact_id, update_data)
+        update_response = await ghl_api.update_contact(ghl_contact_id, update_data)
         if not update_response:
-            #Insert failure handoff
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
-        
         # Step 3: Add bot filter tag
-        tag_response = ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
+        tag_response = await ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
         if not tag_response:
-            #Insert failure handoff
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
-        log("info", f"Initialization -- Success -- {ghl_contact_id}",
-            scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
+        await log("info", f"Initialization -- Success -- {ghl_contact_id}",
+                  scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
 
         return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
     except Exception as e:
-        log("error", f"Unexpected error during initialization: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
+        await log("error", f"Unexpected error during initialization: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
