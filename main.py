@@ -116,7 +116,7 @@ async def initialize(request: Request):
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
         log("info", f"Initialization -- Success -- {ghl_contact_id}",
-            scope="Initialize", input=data, output=update_data)
+            scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
 
         return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
     except Exception as e:
