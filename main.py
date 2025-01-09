@@ -5,12 +5,14 @@ import json
 from openai import OpenAI
 from functions import (
     log,
-    GoHighLevelAPI,
     ghl_api,
-    openai_client,
+    GoHighLevelAPI,
     fetch_ghl_access_token,
+    openai_client,
     advance_convo,
-    compile_messages
+    compile_messages,
+    process_run_response,
+    process_message_run
 )
 
 redis_url = os.getenv("REDIS_URL")
