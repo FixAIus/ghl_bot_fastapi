@@ -43,10 +43,6 @@ def validate_request_data(data):
         log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
         return None
 
-def log(level, msg, **kwargs):
-    """Centralized logger for structured JSON logging."""
-    print(json.dumps({"level": level, "msg": msg, **kwargs}))
-
 
 def fetch_ghl_access_token():
     """Fetch current GHL access token from Railway."""
@@ -117,7 +113,7 @@ class GoHighLevelAPI:
 
         return conversations[0].get("id")
 
-    def retrieve_messages(self, convo_id, contact_id, limit=8, type="TYPE_INSTAGRAM"):
+    def retrieve_messages(self, convo_id, contact_id, limit=10, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
         token = fetch_ghl_access_token()
         if not token:
