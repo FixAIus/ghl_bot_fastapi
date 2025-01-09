@@ -162,7 +162,6 @@ class GoHighLevelAPI:
                 status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Update Contact -- Successfully updated", contact_id=contact_id, response=response.json())
         return response.json()
 
     def send_message(self, message, contact_id, attachments=[], type="IG"):
@@ -187,7 +186,6 @@ class GoHighLevelAPI:
                 status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Send Message -- Successfully sent", contact_id=contact_id, response=response.json())
         return response.json()
 
     def remove_tag(self, contact_id, tags):
@@ -208,7 +206,6 @@ class GoHighLevelAPI:
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Remove Tag -- Successfully removed tags", contact_id=contact_id, tags=tags, response=response.json())
         return response.json()
 
     def add_tag(self, contact_id, tags):
@@ -229,5 +226,4 @@ class GoHighLevelAPI:
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Add Tag -- Successfully added tags", contact_id=contact_id, tags=tags, response=response.json())
         return response.json()
