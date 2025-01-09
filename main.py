@@ -39,12 +39,12 @@ async def trigger_response(request: Request):
         result = redis_client.setex(redis_key, 30, "0")
 
         if result:
-            log("info", f"Redis Queue --- Time Delay Started --- {validated_fields['ghl_contact_id']}",
+            log("info", f"Redis Queue --- Time Delay Started result:{result}--- {validated_fields['ghl_contact_id']}",
                 scope="Redis Queue", num_fields_added=result,
                 fields_added=validated_fields,
                 ghl_contact_id=validated_fields['ghl_contact_id'])
         else:
-            log("info", f"Redis Queue --- Time Delay Reset --- {validated_fields['ghl_contact_id']}",
+            log("info", f"Redis Queue --- Time Delay Reset result:{result}--- {validated_fields['ghl_contact_id']}",
                 scope="Redis Queue", num_fields_added=result,
                 fields_added=validated_fields,
                 ghl_contact_id=validated_fields['ghl_contact_id'])
