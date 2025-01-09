@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import traceback
-from redis import Redis
+from redis.asyncio import Redis
+from openai import AsyncOpenAI
 import os
 import json
-from openai import OpenAI
-from threading import Thread
+import traceback
+import httpx
 from functions import (
     validate_request_data,
     fetch_ghl_access_token,
@@ -14,44 +14,44 @@ from functions import (
     GoHighLevelAPI
 )
 
+
 app = FastAPI()
 
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
-redis_client.config_set("notify-keyspace-events", "Ex")
+await redis_client.config_set("notify-keyspace-events", "Ex")
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-ghl_api = GoHighLevelAPI()
 
 
 @app.post("/triggerResponse")
 async def trigger_response(request: Request):
     try:
         request_data = await request.json()
-        validated_fields = validate_request_data(request_data)
+        validated_fields = await validate_request_data(request_data)
 
         if not validated_fields:
             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
         # Add validated fields to Redis with TTL
         redis_key = make_redis_json_str(validated_fields)
-        result = redis_client.setex(redis_key, 30, "0")
+        result = await redis_client.setex(redis_key, 30, "0")
 
         if result:
-            log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
-                scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
-                ghl_contact_id=validated_fields['ghl_contact_id'])
+            await log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
+                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
+                      ghl_contact_id=validated_fields['ghl_contact_id'])
             return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
         else:
-            log("error", f"Redis Queue --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-                scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
-                ghl_contact_id=validated_fields['ghl_contact_id'])
+            await log("error", f"Redis Queue --- Failed to queue --- {validated_fields['ghl_contact_id']}",
+                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
+                      ghl_contact_id=validated_fields['ghl_contact_id'])
             return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
     except Exception as e:
-        log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
+        await log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
