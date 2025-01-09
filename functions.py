@@ -163,31 +163,20 @@ def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
     except Exception as e:
         log("error", "Compile Messages Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
-def run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id):
-    """Run the AI thread and retrieve its response."""
-    try:
-        run_response = openai_client.beta.threads.runs.create_and_poll(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            additional_messages=messages
-        )
-        return run_response, run_response.status, run_response.id
-    except Exception as e:
-        log("error", "AI thread run failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
-        return None, None, None
 
 
-def process_run_response(run_response, ghl_contact_id):
+def process_run_response(run_response, thread_id, ghl_contact_id):
     """Handle AI response and execute actions."""
-    status = run_response.get("status")
+    run_status = run_response.status
+    run_id = run_response.id
 
     if status == "completed":
-        message_content = run_response.get("message")
-        ghl_api.send_message(message_content, ghl_contact_id)
+        process_message_run(run_id, thread_id, ghl_contact_id)
 
     elif status == "requires_action":
-        action = run_response.get("action")
-
+        process_function_run()
+        
+        ####
         if action == "handoff":
             handoff_action(ghl_contact_id)
         elif action == "end":
@@ -196,9 +185,48 @@ def process_run_response(run_response, ghl_contact_id):
             tier1_action(ghl_contact_id)
         else:
             log("error", "Unknown action required", contact_id=ghl_contact_id, action=action)
-
+        ######
+    
     else:
-        log("error", "Unhandled response status", contact_id=ghl_contact_id, status=status)
+        log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response)
+
+
+def process_message_run(run_id, thread_id, ghl_contact_id):
+    """Process the AI message run and send the response to the user."""
+    try:
+        ai_messages = openai_client.beta.threads.messages.list(thread_id=thread_id, run_id=run_id).data
+        if not ai_messages:
+            log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
+                scope="AI Message", run_id=run_id, thread_id=thread_id, 
+                response=ai_messages, ghl_contact_id=ghl_contact_id)
+            return None
+
+        ai_content = ai_messages[-1].content[0].text.value
+        if "【" in ai_content and "】" in ai_content:
+            ai_content = ai_content[:ai_content.find("【")] + ai_content[ai_content.find("】") + 1:]
+
+        # Send message via GHL API
+        response = ghl_api.send_message(message=ai_content, contact_id=ghl_contact_id)
+        if not response:
+            return None
+
+        # Update the message ID field
+        message_id = response["messageId"]
+        update_data = {
+            "customFields": [
+                {
+                    "key": "recent_automated_message_id",
+                    "field_value": message_id
+                }
+            ]
+        }
+        ghl_api.update_contact(ghl_contact_id, update_data)
+
+        log("info", "AI Message processed and sent", contact_id=ghl_contact_id, new_automated_message_id=message_id)
+        return message_id
+
+
+
 
 
 def handoff_action(ghl_contact_id):
@@ -220,6 +248,8 @@ def tier1_action(ghl_contact_id):
     log("info", "Tier 1 action completed", contact_id=ghl_contact_id)
 
 
+
+
 def advance_convo(convo_data):
     try:
         """Main function to advance the conversation."""
@@ -235,13 +265,17 @@ def advance_convo(convo_data):
             return
     
         # Run AI thread
-        run_response, status, run_id = run_ai_thread(thread_id, assistant_id, messages, ghl_contact_id)
+        run_response = openai_client.beta.threads.runs.create_and_poll(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            additional_messages=messages
+        )
         if not run_response:
-            log("error", "AI thread failed", contact_id=ghl_contact_id)
+            log("error", f"Run Thread -- No run response -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response, thread_id=thread_id)
             return
     
         # Process AI response
-        process_run_response(run_response, ghl_contact_id)
+        process_run_response(run_response, thread_id, ghl_contact_id)
 
     except Exception as e:
         log("error", "Advance Convo Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
