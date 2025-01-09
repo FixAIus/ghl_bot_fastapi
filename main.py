@@ -109,7 +109,7 @@ async def initialize(request: Request):
 
         
         # Step 3: Add bot filter tag
-        tag_response = ghl_api.add_tag(ghl_contact_id, bot_filter_tag)
+        tag_response = ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
         if not tag_response:
             #Insert failure handoff
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
