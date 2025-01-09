@@ -35,23 +35,23 @@ async def trigger_response(request: Request):
             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
         # Add validated fields to Redis with TTL
-        redis_key = strify_input_json(validated_fields)
+        redis_key = make_redis_json_str(validated_fields)
         result = redis_client.setex(redis_key, 30, "0")
 
         if result:
-            log("info", f"Redis Queue --- Time Delay Started result:{result}--- {validated_fields['ghl_contact_id']}",
-                scope="Redis Queue", num_fields_added=result,
-                fields_added=validated_fields,
+            log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
+                scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
                 ghl_contact_id=validated_fields['ghl_contact_id'])
-        else:
-            log("info", f"Redis Queue --- Time Delay Reset result:{result}--- {validated_fields['ghl_contact_id']}",
-                scope="Redis Queue", num_fields_added=result,
-                fields_added=validated_fields,
-                ghl_contact_id=validated_fields['ghl_contact_id'])
+            return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
-        return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+        else:
+            log("error", f"Redis Queue --- Failed to queue --- {validated_fields['ghl_contact_id']}",
+                scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
+                ghl_contact_id=validated_fields['ghl_contact_id'])
+            return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+
     except Exception as e:
-        log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
+        log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
