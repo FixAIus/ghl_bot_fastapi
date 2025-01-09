@@ -4,6 +4,7 @@ import os
 import json
 import traceback
 import httpx
+import asyncio
 
 async def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
