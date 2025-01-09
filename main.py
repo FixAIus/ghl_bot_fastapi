@@ -52,7 +52,7 @@ async def trigger_response(request: Request):
         return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
     except Exception as e:
         log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+        return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
 
@@ -62,6 +62,7 @@ async def trigger_response(request: Request):
 async def initialize(request: Request):
     try:
         data = await request.json()
+        log("info", "Initialization -- Start", input=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
@@ -113,13 +114,13 @@ async def initialize(request: Request):
             #Insert failure handoff
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
-        log("info", f"Initialization successful -- {ghl_contact_id}",
+        log("info", f"Initialization -- Success -- {ghl_contact_id}",
             scope="Initialization", input=data, output=update_data)
 
         return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
     except Exception as e:
         log("error", f"Unexpected error during initialization: {str(e)}", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+        return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
 
