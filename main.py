@@ -52,6 +52,48 @@ async def trigger_response(request: Request):
 
 
 
+@app.post("/initialize")
+async def initialize(request: Request):
+    try:
+        data = await request.json()
+        ghl_contact_id = data.get("ghl_contact_id")
+        first_message = data.get("first_message")
+        bot_filter_tag = data.get("bot_filter_tag")
+
+        if not (ghl_contact_id and first_message and bot_filter_tag):
+            return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
+
+        # Step 1: Create a new thread in OpenAI
+        thread_response = openai_client.beta.threads.create(
+            messages=[{"role": "assistant", "content": first_message}]
+        )
+
+        # Step 2: Get convo_id and send updates to GHL contact
+        convo_id = ghl_api.get_conversation_id(ghl_contact_id)
+        message_response = ghl_api.send_message(first_message, ghl_contact_id)
+        message_id = message_response.messageId
+
+        update_data = {
+            "customFields": [
+                {"key": "ghl_convo_id", "field_value": convo_id},
+                {"key": "recent_automated_message_id", "field_value": message_id}
+            ]
+        }
+        ghl_api.update_contact(ghl_contact_id, update_data)
+
+        # Step 3: Add bot filter tag
+        ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
+
+        log("info", f"Initialization successful -- {ghl_contact_id}",
+            scope="Initialization", convo_id=convo_id, message_id=message_id)
+
+        return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
+    except Exception as e:
+        log("error", f"Unexpected error during initialization: {str(e)}", traceback=traceback.format_exc())
+        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+
+
+
 
 
 @app.post("/testEndpoint")
