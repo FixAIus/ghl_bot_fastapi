@@ -95,7 +95,7 @@ class GoHighLevelAPI:
         "Accept": "application/json"
     }
 
-    def __init__(self, location_id):
+    def __init__(self, location_id=os.getenv('GHL_LOCATION_ID')):
         self.location_id = location_id
 
     def get_conversation_id(self, contact_id):
@@ -121,7 +121,7 @@ class GoHighLevelAPI:
 
         return conversations[0].get("id")
 
-    def retrieve_messages(self, contact_id, limit=50, type="TYPE_INSTAGRAM"):
+    def retrieve_messages(self, convo_id, contact_id, limit=8, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
         token = fetch_ghl_access_token()
         if not token:
@@ -187,4 +187,46 @@ class GoHighLevelAPI:
             return None
 
         log("info", "Send Message -- Successfully sent", contact_id=contact_id, response=response.json())
+        return response.json()
+
+    def remove_tag(self, contact_id, tags):
+        """Remove tags from a contact in GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        payload = {
+            "tags": tags
+        }
+
+        response = requests.delete(url, headers=headers, json=payload)
+        if not response.status_code // 100 == 2:
+            log("error", "Remove Tag -- API Call Failed", contact_id=contact_id, \
+                tags=tags, status_code=response.status_code, response=response.text)
+            return None
+
+        log("info", "Remove Tag -- Successfully removed tags", contact_id=contact_id, tags=tags, response=response.json())
+        return response.json()
+
+    def add_tag(self, contact_id, tags):
+        """Add tags to a contact in GHL API."""
+        token = fetch_ghl_access_token()
+        if not token:
+            return None
+
+        url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
+        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+        payload = {
+            "tags": tags
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        if not response.status_code // 100 == 2:
+            log("error", "Add Tag -- API Call Failed", contact_id=contact_id, \
+                tags=tags, status_code=response.status_code, response=response.text)
+            return None
+
+        log("info", "Add Tag -- Successfully added tags", contact_id=contact_id, tags=tags, response=response.json())
         return response.json()
