@@ -2,6 +2,7 @@ import traceback
 from redis import Redis
 import os
 import json
+import requests
 
 def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
