@@ -66,6 +66,8 @@ async def initialize(request: Request):
         if not (ghl_contact_id and first_message and bot_filter_tag):
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
+        ghl_api = GoHighLevelAPI()
+
         # Step 1: Create a new thread in OpenAI
         thread_response = openai_client.beta.threads.create(
             messages=[{"role": "assistant", "content": first_message}]
