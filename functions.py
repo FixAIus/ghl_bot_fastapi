@@ -118,7 +118,7 @@ class GoHighLevelAPI:
         async with httpx.AsyncClient() as client:
             response = await client.put(url, headers=headers, json=update_data)
 
-        if response.status_code // 100 != 2 or not response.json()["succeeded"]:
+        if response.status_code // 100 != 2 or not response.json()["succeded"]:
             await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
                       status_code=response.status_code, response=response.text)
             return None
