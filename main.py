@@ -68,7 +68,8 @@ async def initialize(request: Request):
         bot_filter_tag = data.get("bot_filter_tag")
 
         if not (ghl_contact_id and first_message and bot_filter_tag):
-            log("error", "Missing required fields -- Canceling bot", scope="Initialize", data=data)
+            log("error", "Missing required fields -- Canceling bot", 
+                scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
             #Insert Failure handoff
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
