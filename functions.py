@@ -108,7 +108,7 @@ class GoHighLevelAPI:
 
         conversations = response.json().get("conversations", [])
         if not conversations:
-            log("error", "No Convo ID found", contact_id=contact_id, response=response.text)
+            log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
             return None
 
         return conversations[0].get("id")
@@ -132,7 +132,7 @@ class GoHighLevelAPI:
 
         messages = response.json().get("messages", {}).get("messages", [])
         if not messages:
-            log("error", "Retrieve Messages -- No messages found", contact_id=contact_id, \
+            log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id, \
                 convo_id=convo_id, api_response=response.json())
             return []
 
@@ -149,7 +149,7 @@ class GoHighLevelAPI:
 
         response = requests.put(url, headers=headers, json=update_data)
         if not response.status_code // 100 == 2 or not response.json()["succeded"]:
-            log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
+            log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
 
@@ -173,7 +173,7 @@ class GoHighLevelAPI:
 
         response = requests.post(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Send Message -- API Call Failed", contact_id=contact_id, \
+            log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
 
@@ -193,7 +193,7 @@ class GoHighLevelAPI:
 
         response = requests.delete(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Remove Tag -- API Call Failed", contact_id=contact_id, \
+            log("error", "Remove Tag -- API Call Failed", ghl_contact_id=contact_id, \
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
@@ -213,7 +213,7 @@ class GoHighLevelAPI:
 
         response = requests.post(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Add Tag -- API Call Failed", contact_id=contact_id, \
+            log("error", "Add Tag -- API Call Failed", ghl_contact_id=contact_id, \
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
