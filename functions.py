@@ -157,7 +157,7 @@ class GoHighLevelAPI:
         headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
 
         response = requests.put(url, headers=headers, json=update_data)
-        if not response.status_code // 100 == 2:
+        if not response.status_code // 100 == 2 or not response.json()["succeded"]:
             log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
