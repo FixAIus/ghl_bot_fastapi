@@ -4,6 +4,7 @@ import traceback
 from redis import Redis
 import os
 import json
+from openai import OpenAI
 from threading import Thread
 from functions import (
     validate_request_data,
@@ -18,6 +19,8 @@ app = FastAPI()
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 redis_client.config_set("notify-keyspace-events", "Ex")
+
+openai_client = OpenAI(os.getenv("OPENAI_API_KEY"))
 
 @app.post("/triggerResponse")
 async def trigger_response(request: Request):
