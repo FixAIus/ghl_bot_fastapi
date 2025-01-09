@@ -22,6 +22,9 @@ redis_client.config_set("notify-keyspace-events", "Ex")
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+ghl_api = GoHighLevelAPI()
+
+
 @app.post("/triggerResponse")
 async def trigger_response(request: Request):
     try:
@@ -66,18 +69,15 @@ async def initialize(request: Request):
         if not (ghl_contact_id and first_message and bot_filter_tag):
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
-        ghl_api = GoHighLevelAPI()
-
         # Step 1: Create a new thread in OpenAI
         thread_response = openai_client.beta.threads.create(
             messages=[{"role": "assistant", "content": first_message}]
         )
-        log("info", f"Here's the thread: {thread_response}")
         
         # Step 2: Get convo_id and send updates to GHL contact
         convo_id = ghl_api.get_conversation_id(ghl_contact_id)
         message_response = ghl_api.send_message(first_message, ghl_contact_id)
-        message_id = message_response.messageId
+        message_id = message_response["messageId"]
 
         update_data = {
             "customFields": [
