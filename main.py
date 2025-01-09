@@ -96,11 +96,11 @@ async def initialize(request: Request):
         message_id = message_response["messageId"]
 
         update_data = {
-            "customFields": [[
+            "customFields": [
                 {"key": "ghl_convo_id", "field_value": convo_id},
                 {"key": "ghl_convo_id", "field_value": thread_id},
                 {"key": "recent_automated_message_id", "field_value": message_id}
-            ]]
+            ]
         }
         update_response = ghl_api.update_contact(ghl_contact_id, update_data)
         if not update_response:
@@ -109,7 +109,7 @@ async def initialize(request: Request):
 
         
         # Step 3: Add bot filter tag
-        tag_response = ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
+        tag_response = ghl_api.add_tag(ghl_contact_id, bot_filter_tag)
         if not tag_response:
             #Insert failure handoff
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
