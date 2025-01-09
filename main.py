@@ -98,7 +98,7 @@ async def initialize(request: Request):
         update_data = {
             "customFields": [
                 {"key": "ghl_convo_id", "field_value": convo_id},
-                {"key": "ghl_convo_id", "field_value": thread_id},
+                {"key": "thread_id", "field_value": thread_id},
                 {"key": "recent_automated_message_id", "field_value": message_id}
             ]
         }
