@@ -6,6 +6,7 @@ import os
 import json
 import traceback
 import httpx
+import asyncio
 from functions import (
     validate_request_data,
     fetch_ghl_access_token,
