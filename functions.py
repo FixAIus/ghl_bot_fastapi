@@ -171,10 +171,10 @@ def process_run_response(run_response, thread_id, ghl_contact_id):
         run_status = run_response.status
         run_id = run_response.id
     
-        if status == "completed":
+        if run_status == "completed":
             process_message_run(run_id, thread_id, ghl_contact_id)
     
-        elif status == "requires_action":
+        elif run_status == "requires_action":
             process_function_run()
             
             ####
