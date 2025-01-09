@@ -29,21 +29,15 @@ def validate_request_data(data):
     Validate request data, ensure required fields are present, and handle conversation ID retrieval.
     Returns validated fields dictionary or None if validation fails.
     """
-    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id"]
+    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id", "ghl_convo_id"]
     fields = {field: data.get(field) for field in required_fields}
-    fields["ghl_convo_id"] = data.get("ghl_convo_id")
 
     missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
     if missing_fields:
-        log("error", f"Validation -- Missing {', '.join(missing_fields)} -- {fields['ghl_contact_id']}",
+        #Insert failyre handoff
+        log("error", f"Validation -- Missing {', '.join(missing_fields)} -- Canceling Bot",
             ghl_contact_id=fields["ghl_contact_id"], scope="Validation", received_fields=fields)
         return None
-
-    if not fields["ghl_convo_id"] or fields["ghl_convo_id"] in ["", "null"]:
-        ghl_api = GoHighLevelAPI(location_id="your_location_id")
-        fields["ghl_convo_id"] = ghl_api.get_conversation_id(fields["ghl_contact_id"])
-        if not fields["ghl_convo_id"]:
-            return None
 
     return fields
 
