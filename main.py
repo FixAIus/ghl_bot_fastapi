@@ -70,7 +70,8 @@ async def initialize(request: Request):
         thread_response = openai_client.beta.threads.create(
             messages=[{"role": "assistant", "content": first_message}]
         )
-
+        log("info", f"Here's the thread: {thread_response}", thread=thread_response)
+        
         # Step 2: Get convo_id and send updates to GHL contact
         convo_id = ghl_api.get_conversation_id(ghl_contact_id)
         message_response = ghl_api.send_message(first_message, ghl_contact_id)
