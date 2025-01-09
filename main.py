@@ -74,7 +74,7 @@ async def initialize(request: Request):
 
         # Step 1: Create a new thread in OpenAI
         thread_response = openai_client.beta.threads.create(
-            messages=[{"role": "assistant", "content": first_message}]
+            messages=[[{"role": "assistant", "content": first_message}]]###########
         )
         thread_id = thread_response.id
         if not thread_id or thread_id in ["", "null", None]:
