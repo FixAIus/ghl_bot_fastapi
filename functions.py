@@ -9,7 +9,7 @@ def log(level, msg, **kwargs):
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
 
-def strify_input_json(input_json):
+def make_redis_json_str(input_json):
     """Format the input JSON into a consistent key format."""
     fields_order = [
         "ghl_contact_id",
@@ -25,22 +25,23 @@ def strify_input_json(input_json):
 
 
 def validate_request_data(data):
-    """
-    Validate request data, ensure required fields are present, and handle conversation ID retrieval.
-    Returns validated fields dictionary or None if validation fails.
-    """
-    required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id", "ghl_convo_id"]
-    fields = {field: data.get(field) for field in required_fields}
-
-    missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
-    if missing_fields:
-        #Insert failyre handoff
-        log("error", f"Validation -- Missing {', '.join(missing_fields)} -- Canceling Bot",
-            ghl_contact_id=fields["ghl_contact_id"], scope="Validation", received_fields=fields)
+    """Returns validated fields dictionary or None if validation fails."""
+    try:
+        required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id", "ghl_convo_id"]
+        fields = {field: data.get(field) for field in required_fields}
+    
+        missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
+        if missing_fields:
+            #Insert failure handoff
+            log("error", f"Validation -- Missing {', '.join(missing_fields)} -- Canceling Bot",
+                ghl_contact_id=fields["ghl_contact_id"], scope="Redis Queue", received_fields=fields)
+            return None
+    
+        return fields
+        
+    except Exception as e:
+        log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
         return None
-
-    return fields
-
 
 def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
