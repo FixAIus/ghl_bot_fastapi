@@ -166,29 +166,33 @@ def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
 
 
 def process_run_response(run_response, thread_id, ghl_contact_id):
-    """Handle AI response and execute actions."""
-    run_status = run_response.status
-    run_id = run_response.id
-
-    if status == "completed":
-        process_message_run(run_id, thread_id, ghl_contact_id)
-
-    elif status == "requires_action":
-        process_function_run()
-        
-        ####
-        if action == "handoff":
-            handoff_action(ghl_contact_id)
-        elif action == "end":
-            end_action(ghl_contact_id)
-        elif action == "tier 1":
-            tier1_action(ghl_contact_id)
-        else:
-            log("error", "Unknown action required", contact_id=ghl_contact_id, action=action)
-        ######
+    try:
+        """Handle AI response and execute actions."""
+        run_status = run_response.status
+        run_id = run_response.id
     
-    else:
-        log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response)
+        if status == "completed":
+            process_message_run(run_id, thread_id, ghl_contact_id)
+    
+        elif status == "requires_action":
+            process_function_run()
+            
+            ####
+            if action == "handoff":
+                handoff_action(ghl_contact_id)
+            elif action == "end":
+                end_action(ghl_contact_id)
+            elif action == "tier 1":
+                tier1_action(ghl_contact_id)
+            else:
+                log("error", "Unknown action required", contact_id=ghl_contact_id, action=action)
+            ######
+        
+        else:
+            log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response)
+
+    except Exception as e:
+        log("error", "Process run response failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 def process_message_run(run_id, thread_id, ghl_contact_id):
@@ -225,6 +229,8 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
         log("info", "AI Message processed and sent", contact_id=ghl_contact_id, new_automated_message_id=message_id)
         return message_id
 
+    except Exception as e:
+        log("error", "Process message run failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 
