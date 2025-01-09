@@ -18,9 +18,13 @@ from functions import (
 
 app = FastAPI()
 
-redis_url = os.getenv("REDIS_URL")
-redis_client = Redis.from_url(redis_url, decode_responses=True)
-redis_client.config_set("notify-keyspace-events", "Ex")
+
+async def configure_redis():
+    redis_url = os.getenv("REDIS_URL")
+    redis_client = Redis.from_url(redis_url, decode_responses=True)
+    await redis_client.config_set("notify-keyspace-events", "Ex")
+asyncio.run(configure_redis())
+
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
