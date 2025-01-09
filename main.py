@@ -62,13 +62,13 @@ async def trigger_response(request: Request):
 async def initialize(request: Request):
     try:
         data = await request.json()
-        log("info", "Initialization -- Start", input=data)
+        log("info", "Initialization -- Start", scope="Initialize", input=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
 
         if not (ghl_contact_id and first_message and bot_filter_tag):
-            log("error", "Missing required fields -- Canceling bot", data=data)
+            log("error", "Missing required fields -- Canceling bot", scope="Initialize", data=data)
             #Insert Failure handoff
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
@@ -79,7 +79,7 @@ async def initialize(request: Request):
         thread_id = thread_response.id
         if not thread_id or thread_id in ["", "null", None]:
             #Insert Failure handoff
-            log("error", "Failed to start thread -- Canceling bot", thread_response=thread_response, data=data)
+            log("error", "Failed to start thread -- Canceling bot", scope="Initialize", thread_response=thread_response, data=data)
             return JSONResponse(content={"error": "Failed to start thread"}, status_code=400)
 
         
@@ -115,11 +115,11 @@ async def initialize(request: Request):
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
         log("info", f"Initialization -- Success -- {ghl_contact_id}",
-            scope="Initialization", input=data, output=update_data)
+            scope="Initialize", input=data, output=update_data)
 
         return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
     except Exception as e:
-        log("error", f"Unexpected error during initialization: {str(e)}", traceback=traceback.format_exc())
+        log("error", f"Unexpected error during initialization: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
