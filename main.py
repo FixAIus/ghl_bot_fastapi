@@ -85,9 +85,9 @@ async def initialize(request: Request):
         
         # Step 2: Get convo_id and send updates to GHL contact
         convo_id = ghl_api.get_conversation_id(ghl_contact_id)
-        if not thread_id or thread_id in ["", "null", None]:
+        if not convo_id:
             #Insert Failure handoff
-            return JSONResponse(content={"error": "Failed to start thread"}, status_code=400)
+            return JSONResponse(content={"error": "Failed to get convo id"}, status_code=400)
             
         message_response = ghl_api.send_message(first_message, ghl_contact_id)
         if not message_response:
