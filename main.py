@@ -53,7 +53,7 @@ async def trigger_response(request: Request):
             return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
     except Exception as e:
-        await log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
+        await log("error", f"Unexpected error during triggerResponse: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
