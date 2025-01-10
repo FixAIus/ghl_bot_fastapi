@@ -228,7 +228,7 @@ class GoHighLevelAPI:
 
         return conversations[0].get("id")
 
-    async def retrieve_messages(self, convo_id, contact_id, limit=10, type="TYPE_INSTAGRAM"):
+    async def retrieve_messages(self, contact_id, convo_id, limit=10, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
         token = await fetch_ghl_access_token()
         if not token:
@@ -267,14 +267,14 @@ class GoHighLevelAPI:
         async with httpx.AsyncClient() as client:
             response = await client.put(url, headers=headers, json=update_data)
 
-        if response.status_code // 100 != 2 or not response.json()["succeded"]:
+        if response.status_code // 100 != 2 or not response.json().get("succeded"):
             await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
                       status_code=response.status_code, response=response.text)
             return None
 
         return response.json()
 
-    async def send_message(self, message, contact_id, attachments=[], type="IG"):
+    async def send_message(self, contact_id, message, attachments=[], type="IG"):
         """Send a message to a user via GHL API."""
         token = await fetch_ghl_access_token()
         if not token:
@@ -293,14 +293,14 @@ class GoHighLevelAPI:
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload)
 
-        if response.status_code // 100 != 2:
+        if response.status_code // 100 != 2 or not response.json().get("messageId"):
             await log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id,
                       status_code=response.status_code, response=response.text)
             return None
 
         return response.json()
 
-    async def remove_tag(self, contact_id, tags):
+    async def remove_tags(self, contact_id, tags):
         """Remove tags from a contact in GHL API."""
         token = await fetch_ghl_access_token()
         if not token:
@@ -313,16 +313,22 @@ class GoHighLevelAPI:
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.delete(url, headers=headers, json=payload)
+            response = await client.request("DELETE", url, headers=headers, json=payload)
 
         if response.status_code // 100 != 2:
-            await log("error", "Remove Tag -- API Call Failed", ghl_contact_id=contact_id,
+            await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
                       tags=tags, status_code=response.status_code, response=response.text)
+            return None
+
+        response_tags = response.json().get("tags", [])
+        if not all(tag in response_tags for tag in tags):
+            await log("error", "Remove Tags -- Not all tags removed", ghl_contact_id=contact_id,
+                      tags=tags, response_tags=response_tags)
             return None
 
         return response.json()
 
-    async def add_tag(self, contact_id, tags):
+    async def add_tags(self, contact_id, tags):
         """Add tags to a contact in GHL API."""
         token = await fetch_ghl_access_token()
         if not token:
@@ -338,11 +344,18 @@ class GoHighLevelAPI:
             response = await client.post(url, headers=headers, json=payload)
 
         if response.status_code // 100 != 2:
-            await log("error", "Add Tag -- API Call Failed", ghl_contact_id=contact_id,
+            await log("error", "Add Tags -- API Call Failed", ghl_contact_id=contact_id,
                       tags=tags, status_code=response.status_code, response=response.text)
             return None
 
+        response_tags = response.json().get("tags", [])
+        if not all(tag in response_tags for tag in tags):
+            await log("error", "Add Tags -- Not all tags added", ghl_contact_id=contact_id,
+                      tags=tags, response_tags=response_tags)
+            return None
+
         return response.json()
+
 
 
 #
