@@ -221,7 +221,7 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
             ai_content = ai_content[:ai_content.find("【")] + ai_content[ai_content.find("】") + 1:]
 
         # Send message via GHL API
-        response = ghl_api.send_message(message=ai_content, ghl_contact_id=ghl_contact_id)
+        response = ghl_api.send_message(message=ai_content, contact_id=ghl_contact_id)
         if not response:
             return None
 
