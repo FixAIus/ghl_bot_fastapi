@@ -7,6 +7,7 @@ import asyncio
 from redis.asyncio import Redis
 from functions import (
     log,
+    KILL_BOT
     ghl_api,
     GoHighLevelAPI,
     fetch_ghl_access_token,
@@ -37,7 +38,7 @@ async def listen_to_keyspace():
 
                 # Log the reconstructed JSON object
                 await log("info", "Keyspace notification received and parsed", data=json_data)
-                asyncio.create_task(handle_convo(json_data))
+                asyncio.create_task(advance_convo(json_data))
 
             except json.JSONDecodeError as e:
                 await log("error", "Failed to decode expired key as JSON", error=str(e), raw_data=message["data"])
