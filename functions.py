@@ -253,9 +253,9 @@ def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
 
         if "handoff" in function_args:
             handoff_action(ghl_contact_id)
-        elif "end_conversation" in function_args:
+        elif "reason" in function_args:
             end_action(ghl_contact_id)
-        elif "tier_1_response" in function_args:
+        elif "tier" in function_args:
             tier1_action(ghl_contact_id)
         else:
             log("error", "Unhandled function key", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
