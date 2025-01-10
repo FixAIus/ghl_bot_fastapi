@@ -223,6 +223,7 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
         # Send message via GHL API
         response = ghl_api.send_message(message=ai_content, contact_id=ghl_contact_id)
         if not response:
+            #kill bot
             return None
 
         # Update the message ID field
@@ -236,11 +237,13 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
             ]
         }
         ghl_api.update_contact(ghl_contact_id, update_data)
+        # kill bot if didnt work ^
 
         log("info", "AI Message processed and sent", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
         return message_id
 
     except Exception as e:
+        #kill bot
         log("error", "Process message run failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
