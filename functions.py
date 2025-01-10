@@ -197,19 +197,8 @@ def process_run_response(run_response, thread_id, ghl_contact_id):
             process_message_run(run_id, thread_id, ghl_contact_id)
     
         elif run_status == "requires_action":
-            process_function_run()
+            process_function_run(run_response, thread_id, run_id, ghl_contact_id)
             
-            ####
-            if action == "handoff":
-                handoff_action(ghl_contact_id)
-            elif action == "end":
-                end_action(ghl_contact_id)
-            elif action == "tier 1":
-                tier1_action(ghl_contact_id)
-            else:
-                log("error", "Unknown action required", contact_id=ghl_contact_id, action=action)
-            ######
-        
         else:
             log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response)
 
@@ -255,6 +244,11 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
         log("error", "Process message run failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
+
+def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
+    tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
+    function_args = json.loads(tool_call.function.arguments)
+    log("error", f"{str(function_args)}", args=function_args)
 
 
 def handoff_action(ghl_contact_id):
