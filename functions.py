@@ -26,13 +26,13 @@ class GoHighLevelAPI:
 
         response = requests.get(url, headers=headers, params=params)
         if not response.status_code // 100 == 2:
-            log("error", "Get convo ID API call failed", contact_id=contact_id, \
+            log("error", "Get convo ID API call failed", ghl_contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
 
         conversations = response.json().get("conversations", [])
         if not conversations:
-            log("error", "No Convo ID found", contact_id=contact_id, response=response.text)
+            log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
             return None
 
         return conversations[0].get("id")
@@ -50,13 +50,13 @@ class GoHighLevelAPI:
         response = requests.get(url, headers=headers, params=params)
         if not response.status_code // 100 == 2:
             log("error", "Retrieve Messages -- API Call Failed", \
-                contact_id=contact_id, convo_id=convo_id, \
+                ghl_contact_id=contact_id, convo_id=convo_id, \
                 status_code=response.status_code, response=response.text)
             return []
 
         messages = response.json().get("messages", {}).get("messages", [])
         if not messages:
-            log("error", "Retrieve Messages -- No messages found", contact_id=contact_id, \
+            log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id, \
                 convo_id=convo_id, api_response=response.json())
             return []
 
@@ -73,11 +73,11 @@ class GoHighLevelAPI:
 
         response = requests.put(url, headers=headers, json=update_data)
         if not response.status_code // 100 == 2:
-            log("error", "Update Contact -- API Call Failed", contact_id=contact_id, \
+            log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Update Contact -- Successfully updated", contact_id=contact_id, response=response.json())
+        log("info", "Update Contact -- Successfully updated", ghl_contact_id=contact_id, response=response.json())
         return response.json()
 
     def send_message(self, message, contact_id, attachments=[], type="IG"):
@@ -98,11 +98,11 @@ class GoHighLevelAPI:
 
         response = requests.post(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Send Message -- API Call Failed", contact_id=contact_id, \
+            log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id, \
                 status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Send Message -- Successfully sent", contact_id=contact_id, response=response.json())
+        log("info", "Send Message -- Successfully sent", ghl_contact_id=contact_id, response=response.json())
         return response.json()
 
     def remove_tag(self, contact_id, tags):
@@ -119,11 +119,11 @@ class GoHighLevelAPI:
 
         response = requests.delete(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Remove Tag -- API Call Failed", contact_id=contact_id, \
+            log("error", "Remove Tag -- API Call Failed", ghl_contact_id=contact_id, \
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Remove Tag -- Successfully removed tags", contact_id=contact_id, tags=tags, response=response.json())
+        log("info", "Remove Tag -- Successfully removed tags", ghl_contact_id=contact_id, tags=tags, response=response.json())
         return response.json()
 
     def add_tag(self, contact_id, tags):
@@ -140,11 +140,11 @@ class GoHighLevelAPI:
 
         response = requests.post(url, headers=headers, json=payload)
         if not response.status_code // 100 == 2:
-            log("error", "Add Tag -- API Call Failed", contact_id=contact_id, \
+            log("error", "Add Tag -- API Call Failed", ghl_contact_id=contact_id, \
                 tags=tags, status_code=response.status_code, response=response.text)
             return None
 
-        log("info", "Add Tag -- Successfully added tags", contact_id=contact_id, tags=tags, response=response.json())
+        log("info", "Add Tag -- Successfully added tags", ghl_contact_id=contact_id, tags=tags, response=response.json())
         return response.json()
 
 
@@ -175,15 +175,15 @@ def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
                 if msg["direction"] == "inbound":
                     new_messages.insert(0, {"role": "user", "content": msg["body"]})
             if found_recent:
-                log("info", f"Compile Messages -- Success -- {ghl_contact_id}", contact_id=ghl_contact_id, compiled_messages=new_messages, all_messages=all_messages)
+                log("info", f"Compile Messages -- Success -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, compiled_messages=new_messages, all_messages=all_messages)
                 return new_messages
                 
-            log("error", f"Compile Messages -- No message identifier found -- {ghl_contact_id}", contact_id=ghl_contact_id, 
+            log("error", f"Compile Messages -- No message identifier found -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, 
                 all_messages=all_messages, msg_id=recent_automated_message_id)
         return None
         
     except Exception as e:
-        log("error", "Compile Messages Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        log("error", "Compile Messages Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 
@@ -200,10 +200,10 @@ def process_run_response(run_response, thread_id, ghl_contact_id):
             process_function_run(run_response, thread_id, run_id, ghl_contact_id)
             
         else:
-            log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response)
+            log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, run_response=run_response)
 
     except Exception as e:
-        log("error", "Process run response failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        log("error", "Process run response failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 def process_message_run(run_id, thread_id, ghl_contact_id):
@@ -221,7 +221,7 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
             ai_content = ai_content[:ai_content.find("【")] + ai_content[ai_content.find("】") + 1:]
 
         # Send message via GHL API
-        response = ghl_api.send_message(message=ai_content, contact_id=ghl_contact_id)
+        response = ghl_api.send_message(message=ai_content, ghl_contact_id=ghl_contact_id)
         if not response:
             return None
 
@@ -237,37 +237,63 @@ def process_message_run(run_id, thread_id, ghl_contact_id):
         }
         ghl_api.update_contact(ghl_contact_id, update_data)
 
-        log("info", "AI Message processed and sent", contact_id=ghl_contact_id, new_automated_message_id=message_id)
+        log("info", "AI Message processed and sent", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
         return message_id
 
     except Exception as e:
-        log("error", "Process message run failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        log("error", "Process message run failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 
 def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
-    tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
-    function_args = json.loads(tool_call.function.arguments)
-    log("error", f"{str(function_args)}", args=function_args)
+    """Process the function run based on the key in function arguments."""
+    try:
+        tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
+        function_args = json.loads(tool_call.function.arguments)
+
+        if "handoff" in function_args:
+            handoff_action(ghl_contact_id)
+        elif "end_conversation" in function_args:
+            end_action(ghl_contact_id)
+        elif "tier_1_response" in function_args:
+            tier1_action(ghl_contact_id)
+        else:
+            log("error", "Unhandled function key", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
+            return None
+
+        openai_client.beta.threads.runs.submit_tool_outputs( 
+            thread_id=thread_id,
+            run_id=run_id,
+            tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
+        )
+
+        log("info", "Function run processed", ghl_contact_id=ghl_contact_id, function_args=function_args)
+        return True
+
+    except Exception as e:
+        log("error", "Process Function Run Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        return None
 
 
 def handoff_action(ghl_contact_id):
     """Handle handoff logic."""
     ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
-    ghl_api.send_message("A team member will assist you shortly.", ghl_contact_id)
-    log("info", "Handoff action completed", contact_id=ghl_contact_id)
+    ghl_api.send_message("handoff", ghl_contact_id)
+    log("info", "Handoff action completed", ghl_contact_id=ghl_contact_id)
 
 
 def end_action(ghl_contact_id):
     """Handle conversation end logic."""
     ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
-    log("info", "Conversation ended", contact_id=ghl_contact_id)
+    ghl_api.send_message("end", ghl_contact_id)
+    log("info", "Conversation ended", ghl_contact_id=ghl_contact_id)
 
 
 def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
+    ghl_api.send_message("tier 1", ghl_contact_id)
     ghl_api.send_message("Here is the information for Tier 1 resources.", ghl_contact_id)
-    log("info", "Tier 1 action completed", contact_id=ghl_contact_id)
+    log("info", "Tier 1 action completed", ghl_contact_id=ghl_contact_id)
 
 
 
@@ -293,14 +319,14 @@ def advance_convo(convo_data):
             additional_messages=messages
         )
         if not run_response:
-            log("error", f"Run Thread -- No run response -- {ghl_contact_id}", contact_id=ghl_contact_id, run_response=run_response, thread_id=thread_id)
+            log("error", f"Run Thread -- No run response -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, run_response=run_response, thread_id=thread_id)
             return
     
         # Process AI response
         process_run_response(run_response, thread_id, ghl_contact_id)
 
     except Exception as e:
-        log("error", "Advance Convo Failed", contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        log("error", "Advance Convo Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
 
