@@ -7,7 +7,7 @@ import asyncio
 from redis.asyncio import Redis
 from functions import (
     log,
-    KILL_BOT
+    KILL_BOT,
     ghl_api,
     GoHighLevelAPI,
     fetch_ghl_access_token,
