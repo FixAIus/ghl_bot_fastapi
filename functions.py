@@ -384,8 +384,8 @@ class GoHighLevelAPI:
                 return None
 
             response_tags = response.json().get("tags", [])
-            if not all(tag in response_tags for tag in tags):
-                await log("error", "Remove Tags -- Not all tags removed", ghl_contact_id=contact_id,
+            if any(tag in response_tags for tag in tags):
+                await log("error", "Remove Tags -- Some tags still present", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
 
