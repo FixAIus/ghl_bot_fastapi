@@ -1,131 +1,184 @@
+# main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+import traceback
 from redis.asyncio import Redis
-from openai import AsyncOpenAI
 import os
 import json
-import traceback
-import httpx
 import asyncio
+from typing import Dict
 from functions import (
     validate_request_data,
     fetch_ghl_access_token,
-    make_redis_json_str,
     log,
     GoHighLevelAPI
 )
 
-
 app = FastAPI()
 
+# Simple Redis setup
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
-@app.on_event("startup")
-async def startup_event():
-    await redis_client.config_set("notify-keyspace-events", "Ex")
-@app.on_event("shutdown")
-async def shutdown_event():
-    await redis_client.close()
 
+# Queue management
+conversation_queues: Dict[str, asyncio.Queue] = {}
+processing_locks: Dict[str, asyncio.Lock] = {}
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+async def get_conversation_queue(contact_id: str) -> asyncio.Queue:
+    """Get or create a queue for a specific contact."""
+    if contact_id not in conversation_queues:
+        conversation_queues[contact_id] = asyncio.Queue()
+    return conversation_queues[contact_id]
 
-ghl_api = GoHighLevelAPI()
-
+async def get_processing_lock(contact_id: str) -> asyncio.Lock:
+    """Get or create a processing lock for a specific contact."""
+    if contact_id not in processing_locks:
+        processing_locks[contact_id] = asyncio.Lock()
+    return processing_locks[contact_id]
 
 @app.post("/triggerResponse")
 async def trigger_response(request: Request):
     try:
         request_data = await request.json()
-        validated_fields = await validate_request_data(request_data)
+        # Extract message content
+        messages = request_data.get("messages", [])
+        if messages:
+            message = messages[0] if messages else {}
+            request_data["ghl_recent_message"] = message.get("content")
 
+        validated_fields = await validate_request_data(request_data)
         if not validated_fields:
             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
         # Add validated fields to Redis with TTL
-        redis_key = make_redis_json_str(validated_fields)
-        result = await redis_client.setex(redis_key, 30, "0")
+        redis_key = f"contact:{validated_fields['ghl_contact_id']}"
+        result = await redis_client.hset(redis_key, mapping=validated_fields)
+        await redis_client.expire(redis_key, 30)
+
+        # Add to queue system
+        contact_id = validated_fields["ghl_contact_id"]
+        queue = await get_conversation_queue(contact_id)
+        await queue.put(validated_fields)
 
         if result:
-            await log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
-                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
-
+            log("info", f"Redis Queue --- Time Delay Started --- {validated_fields['ghl_contact_id']}",
+                scope="Redis Queue", num_fields_added=result,
+                fields_added=json.dumps(validated_fields),
+                ghl_contact_id=validated_fields['ghl_contact_id'])
         else:
-            await log("error", f"Redis Queue --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+            log("info", f"Redis Queue --- Time Delay Reset --- {validated_fields['ghl_contact_id']}",
+                scope="Redis Queue", num_fields_added=result,
+                fields_added=json.dumps(validated_fields),
+                ghl_contact_id=validated_fields['ghl_contact_id'])
 
-    except Exception as e:
-        await log("error", f"Unexpected error during triggerResponse: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal code error"}, status_code=500)
+        # Start processing task
+        asyncio.create_task(process_conversation_queue(contact_id))
 
-
-
-
-
-@app.post("/initialize")
-async def initialize(request: Request):
-    try:
-        data = await request.json()
-        await log("info", "Initialization -- Start", scope="Initialize", input=data)
-        ghl_contact_id = data.get("ghl_contact_id")
-        first_message = data.get("first_message")
-        bot_filter_tag = data.get("bot_filter_tag")
-
-        if not (ghl_contact_id and first_message and bot_filter_tag):
-            await log("error", "Missing required fields -- Canceling bot", 
-                      scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
-            return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
-
-        # Step 1: Create a new thread in OpenAI
-        thread_response = await openai_client.beta.threads.create(
-            messages=[{"role": "assistant", "content": first_message}]
+        return JSONResponse(
+            content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']},
+            status_code=200
         )
-        thread_id = thread_response.id
-        if not thread_id or thread_id in ["", "null", None]:
-            await log("error", "Failed to start thread -- Canceling bot", scope="Initialize", thread_response=thread_response, data=data)
-            return JSONResponse(content={"error": "Failed to start thread"}, status_code=400)
-
-        # Step 2: Get convo_id and send updates to GHL contact
-        convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
-        if not convo_id:
-            return JSONResponse(content={"error": "Failed to get convo id"}, status_code=400)
-
-        message_response = await ghl_api.send_message(first_message, ghl_contact_id)
-        if not message_response:
-            return JSONResponse(content={"error": "Failed to send message"}, status_code=400)
-        message_id = message_response["messageId"]
-
-        update_data = {
-            "customFields": [
-                {"key": "ghl_convo_id", "field_value": convo_id},
-                {"key": "thread_id", "field_value": thread_id},
-                {"key": "recent_automated_message_id", "field_value": message_id}
-            ]
-        }
-        update_response = await ghl_api.update_contact(ghl_contact_id, update_data)
-        if not update_response:
-            return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
-
-        # Step 3: Add bot filter tag
-        tag_response = await ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
-        if not tag_response:
-            return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
-
-        await log("info", f"Initialization -- Success -- {ghl_contact_id}",
-                  scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
-
-        return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
     except Exception as e:
-        await log("error", f"Unexpected error during initialization: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal code error"}, status_code=500)
+        log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
+        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
 
+@app.post("/moveConvoForward")
+async def move_convo_forward(request: Request):
+    """
+    Asynchronous endpoint with request queueing for handling conversation flow.
+    All requests are accepted and processed in order per contact.
+    """
+    try:
+        request_data = await request.json()
+        
+        # Basic validation for contact ID
+        contact_id = request_data.get("ghl_contact_id")
+        if not contact_id:
+            return JSONResponse(content={"error": "Missing contact ID"}, status_code=400)
+            
+        # Get or create queue for this contact
+        queue = await get_conversation_queue(contact_id)
+        
+        # Add request to queue
+        await queue.put(request_data)
+        log("info", f"Request queued for contact {contact_id}", 
+            queue_size=queue.qsize())
+        
+        # Process the request
+        asyncio.create_task(process_conversation_queue(contact_id))
+        
+        return JSONResponse(
+            content={"message": "Request queued for processing", "ghl_contact_id": contact_id},
+            status_code=200
+        )
 
+    except Exception as e:
+        tb_str = traceback.format_exc()
+        log("error", "GENERAL -- Unhandled exception in queue processing",
+            scope="General", error=str(e), traceback=tb_str)
+        return JSONResponse(
+            content={"error": str(e), "traceback": tb_str},
+            status_code=500
+        )
 
+async def process_conversation_queue(contact_id: str):
+    """Process queued requests for a specific contact."""
+    queue = await get_conversation_queue(contact_id)
+    lock = await get_processing_lock(contact_id)
+    
+    async with lock:
+        try:
+            while not queue.empty():
+                request_data = await queue.get()
+                
+                # Process the conversation with OpenAI Assistant
+                response = await process_assistant_conversation(request_data)
+                
+                # Update GHL with the response
+                if response and not response.get("error"):
+                    await update_ghl_conversation(request_data, response)
+                
+                queue.task_done()
+                
+        except Exception as e:
+            log("error", f"Queue processing error for contact {contact_id}: {str(e)}",
+                traceback=traceback.format_exc())
 
+async def process_assistant_conversation(request_data: Dict) -> Dict:
+    """Process conversation with OpenAI Assistant."""
+    try:
+        thread_id = request_data.get("thread_id")
+        assistant_id = request_data.get("assistant_id")
+        
+        if not thread_id or not assistant_id:
+            raise ValueError("Missing thread_id or assistant_id")
+            
+        # Add your OpenAI Assistant processing logic here
+        return {
+            "message": "Processed by assistant",
+            "thread_id": thread_id
+        }
+        
+    except Exception as e:
+        log("error", "Assistant processing error", error=str(e),
+            traceback=traceback.format_exc())
+        return {"error": str(e)}
+
+async def update_ghl_conversation(request_data: Dict, response: Dict):
+    """Update GoHighLevel conversation with assistant response."""
+    try:
+        if response.get("message"):
+            contact_id = request_data.get("ghl_contact_id")
+            convo_id = request_data.get("ghl_convo_id")
+            
+            if not contact_id or not convo_id:
+                raise ValueError("Missing contact_id or convo_id")
+                
+            # Add your GHL message update logic here
+            pass
+    except Exception as e:
+        log("error", "GHL update error", error=str(e),
+            traceback=traceback.format_exc())
 
 @app.post("/testEndpoint")
 async def test_endpoint(request: Request):
@@ -143,11 +196,11 @@ async def test_endpoint(request: Request):
                 "action": {
                     "type": "force end, handoff, add_contact_id",
                     "details": {
-                        "ghl_convo_id": "afdlja;ldf"
+                        "ghl_convo_id": data.get("ghl_convo_id", "")
                     }
                 },
-                "message": "wwwwww",
-                "error": "booo error"
+                "message": "Test response",
+                "error": None
             },
             status_code=200
         )
