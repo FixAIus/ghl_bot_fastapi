@@ -14,6 +14,39 @@ async def log(level, msg, **kwargs):
     print(json.dumps({"level": level, "msg": msg, **kwargs}))
 
 
+async def KILL_BOT(reason, ghl_contact_id, actions):
+    """Kill Bot function to execute specified actions and log results."""
+    failed_actions = []
+
+    for action, retries in actions:
+        success = False
+        for _ in range(retries):
+            try:
+                await action()
+                success = True
+                break
+            except Exception as e:
+                error_details = {"action": action.__name__, "error": str(e), "traceback": traceback.format_exc()}
+                continue
+
+        if not success:
+            failed_actions.append(error_details)
+
+    result = "all actions successful" if not failed_actions else "some actions failed"
+    log_level = "info" if not failed_actions else "error"
+    await log(
+        log_level, 
+        f"Kill Bot -- {reason} -- {result}",
+        scope="Kill Bot", 
+        ghl_contact_id=ghl_contact_id, 
+        failed_actions=failed_actions or None
+    )
+
+
+
+
+
+
 async def advance_convo(convo_data):
     try:
         """Main function to advance the conversation."""
@@ -49,55 +82,6 @@ async def advance_convo(convo_data):
                 [
                     (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
                     (lambda: ghl_api.add_tags(ghl_contact_id, ["bot failure"]), 1)
-                ]
-            )
-            return
-
-        # Process AI response
-        await process_run_response(run_response, thread_id, ghl_contact_id)
-
-    except Exception as e:
-        await log("error", "Advance Convo Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
-
-
-
-
-
-async def advance_convo(convo_data):
-    try:
-        """Main function to advance the conversation."""
-        ghl_contact_id = convo_data.get("ghl_contact_id")
-        ghl_convo_id = convo_data.get("ghl_convo_id")
-        thread_id = convo_data.get("thread_id")
-        assistant_id = convo_data.get("assistant_id")
-        recent_automated_message_id = convo_data.get("recent_automated_message_id")
-
-        # Compile messages
-        messages = await compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
-        if not messages:
-            await KILL_BOT(
-                "Bot Failure", 
-                ghl_contact_id, 
-                [
-                    (lambda: ghl_api.remove_tag(ghl_contact_id, ["bott"]), 1),
-                    (lambda: ghl_api.add_tag(ghl_contact_id, ["bot failure"]), 1)
-                ]
-            )
-            return
-
-        # Run AI thread
-        run_response = await openai_client.beta.threads.runs.create_and_poll(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            additional_messages=messages
-        )
-        if not run_response:
-            await KILL_BOT(
-                "Bot Failure", 
-                ghl_contact_id, 
-                [
-                    (lambda: ghl_api.remove_tag(ghl_contact_id, ["bott"]), 1),
-                    (lambda: ghl_api.add_tag(ghl_contact_id, ["bot failure"]), 1)
                 ]
             )
             return
