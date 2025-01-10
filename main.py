@@ -20,7 +20,13 @@ app = FastAPI()
 
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
-asyncio.create_task(redis_client.config_set("notify-keyspace-events", "Ex"))
+@app.on_event("startup")
+async def startup_event():
+    await redis_client.config_set("notify-keyspace-events", "Ex")
+@app.on_event("shutdown")
+async def shutdown_event():
+    await redis_client.close()
+
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
