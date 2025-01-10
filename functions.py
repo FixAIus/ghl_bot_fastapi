@@ -205,156 +205,181 @@ class GoHighLevelAPI:
 
     async def get_conversation_id(self, contact_id):
         """Retrieve conversation ID from GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return None
+
+            url = f"{self.BASE_URL}/conversations/search"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+            params = {"locationId": self.location_id, "contactId": contact_id}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params=params)
+
+            if response.status_code // 100 != 2:
+                await log("error", "Get convo ID API call failed", contact_id=contact_id,
+                          status_code=response.status_code, response=response.text)
+                return None
+
+            conversations = response.json().get("conversations", [])
+            if not conversations:
+                await log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
+                return None
+
+            return conversations[0].get("id")
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="get_conversation_id", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
-
-        url = f"{self.BASE_URL}/conversations/search"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        params = {"locationId": self.location_id, "contactId": contact_id}
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, params=params)
-
-        if response.status_code // 100 != 2:
-            await log("error", "Get convo ID API call failed", contact_id=contact_id,
-                      status_code=response.status_code, response=response.text)
-            return None
-
-        conversations = response.json().get("conversations", [])
-        if not conversations:
-            await log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
-            return None
-
-        return conversations[0].get("id")
 
     async def retrieve_messages(self, contact_id, convo_id, limit=10, type="TYPE_INSTAGRAM"):
         """Retrieve messages from GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return []
+
+            url = f"{self.BASE_URL}/conversations/{convo_id}/messages"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+            params = {"limit": limit, "type": type}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params=params)
+
+            if response.status_code // 100 != 2:
+                await log("error", "Retrieve Messages -- API Call Failed",
+                          contact_id=contact_id, convo_id=convo_id,
+                          status_code=response.status_code, response=response.text)
+                return []
+
+            messages = response.json().get("messages", {}).get("messages", [])
+            if not messages:
+                await log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id,
+                          convo_id=convo_id, api_response=response.json())
+                return []
+
+            return messages
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="retrieve_messages", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return []
-
-        url = f"{self.BASE_URL}/conversations/{convo_id}/messages"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        params = {"limit": limit, "type": type}
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, params=params)
-
-        if response.status_code // 100 != 2:
-            await log("error", "Retrieve Messages -- API Call Failed",
-                      contact_id=contact_id, convo_id=convo_id,
-                      status_code=response.status_code, response=response.text)
-            return []
-
-        messages = response.json().get("messages", {}).get("messages", [])
-        if not messages:
-            await log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id,
-                      convo_id=convo_id, api_response=response.json())
-            return []
-
-        return messages
 
     async def update_contact(self, contact_id, update_data):
         """Update contact information in GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return None
+
+            url = f"{self.BASE_URL}/contacts/{contact_id}"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.put(url, headers=headers, json=update_data)
+
+            if response.status_code // 100 != 2 or not response.json().get("succeded"):
+                await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
+                          status_code=response.status_code, response=response.text)
+                return None
+
+            return response.json()
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="update_contact", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
-
-        url = f"{self.BASE_URL}/contacts/{contact_id}"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-
-        async with httpx.AsyncClient() as client:
-            response = await client.put(url, headers=headers, json=update_data)
-
-        if response.status_code // 100 != 2 or not response.json().get("succeded"):
-            await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
-                      status_code=response.status_code, response=response.text)
-            return None
-
-        return response.json()
 
     async def send_message(self, contact_id, message, attachments=[], type="IG"):
         """Send a message to a user via GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return None
+
+            url = f"{self.BASE_URL}/conversations/messages"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+            payload = {
+                "locationId": self.location_id,
+                "contactId": contact_id,
+                "message": message,
+                "attachments": attachments,
+                "type": type
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=payload)
+
+            if response.status_code // 100 != 2 or not response.json().get("messageId"):
+                await log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id,
+                          status_code=response.status_code, response=response.text)
+                return None
+
+            return response.json()
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="send_message", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
-
-        url = f"{self.BASE_URL}/conversations/messages"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        payload = {
-            "locationId": self.location_id,
-            "contactId": contact_id,
-            "message": message,
-            "attachments": attachments,
-            "type": type
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload)
-
-        if response.status_code // 100 != 2 or not response.json().get("messageId"):
-            await log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id,
-                      status_code=response.status_code, response=response.text)
-            return None
-
-        return response.json()
 
     async def remove_tags(self, contact_id, tags):
         """Remove tags from a contact in GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return None
+
+            url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+            payload = {
+                "tags": tags
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.request("DELETE", url, headers=headers, json=payload)
+
+            if response.status_code // 100 != 2:
+                await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
+                          tags=tags, status_code=response.status_code, response=response.text)
+                return None
+
+            response_tags = response.json().get("tags", [])
+            if not all(tag in response_tags for tag in tags):
+                await log("error", "Remove Tags -- Not all tags removed", ghl_contact_id=contact_id,
+                          tags=tags, response_tags=response_tags)
+                return None
+
+            return response.json()
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="remove_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
-
-        url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        payload = {
-            "tags": tags
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.request("DELETE", url, headers=headers, json=payload)
-
-        if response.status_code // 100 != 2:
-            await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
-                      tags=tags, status_code=response.status_code, response=response.text)
-            return None
-
-        response_tags = response.json().get("tags", [])
-        if not all(tag in response_tags for tag in tags):
-            await log("error", "Remove Tags -- Not all tags removed", ghl_contact_id=contact_id,
-                      tags=tags, response_tags=response_tags)
-            return None
-
-        return response.json()
 
     async def add_tags(self, contact_id, tags):
         """Add tags to a contact in GHL API."""
-        token = await fetch_ghl_access_token()
-        if not token:
+        try:
+            token = await fetch_ghl_access_token()
+            if not token:
+                return None
+
+            url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
+            headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
+            payload = {
+                "tags": tags
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=payload)
+
+            if response.status_code // 100 != 2:
+                await log("error", "Add Tags -- API Call Failed", ghl_contact_id=contact_id,
+                          tags=tags, status_code=response.status_code, response=response.text)
+                return None
+
+            response_tags = response.json().get("tags", [])
+            if not all(tag in response_tags for tag in tags):
+                await log("error", "Add Tags -- Not all tags added", ghl_contact_id=contact_id,
+                          tags=tags, response_tags=response_tags)
+                return None
+
+            return response.json()
+        except Exception as e:
+            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="add_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
-        url = f"{self.BASE_URL}/contacts/{contact_id}/tags"
-        headers = {**self.HEADERS, "Authorization": f"Bearer {token}"}
-        payload = {
-            "tags": tags
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload)
-
-        if response.status_code // 100 != 2:
-            await log("error", "Add Tags -- API Call Failed", ghl_contact_id=contact_id,
-                      tags=tags, status_code=response.status_code, response=response.text)
-            return None
-
-        response_tags = response.json().get("tags", [])
-        if not all(tag in response_tags for tag in tags):
-            await log("error", "Add Tags -- Not all tags added", ghl_contact_id=contact_id,
-                      tags=tags, response_tags=response_tags)
-            return None
-
-        return response.json()
 
 
 
