@@ -24,9 +24,7 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 async def listen_to_keyspace():
-    """Listen for Redis keyspace notifications and log received data."""
-    ghl_api = GoHighLevelAPI()
-    
+    """Listen for Redis keyspace notifications and log received data."""    
     # Subscribe to keyspace notifications
     pubsub = redis_client.pubsub()
     await pubsub.psubscribe("__keyevent@0__:expired")
