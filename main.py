@@ -109,7 +109,7 @@ async def trigger_response(request: Request):
 
         # Add validated fields to Redis with TTL
         redis_key = make_redis_json_str(validated_fields)
-        result = await redis_client.setex(redis_key, 30, "0")
+        result = await redis_client.setex(redis_key, 10, "0")
 
         if result:
             await log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
