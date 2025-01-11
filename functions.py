@@ -229,7 +229,7 @@ class GoHighLevelAPI:
                 await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
-
+            log("error", "response.json", resp=response.json()#######################################################################################################################
             response_tags = response.json().get("tags", [])
             if any(tag in response_tags for tag in tags):
                 await log("error", "Remove Tags -- Some tags still present", ghl_contact_id=contact_id,
