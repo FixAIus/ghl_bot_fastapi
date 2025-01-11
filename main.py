@@ -100,7 +100,6 @@ async def initialize(request: Request):
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
-            await log("error", f"Initialization error: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
             return JSONResponse(content={"error": str(e)}, status_code=400)
 
     except Exception as e:
@@ -120,6 +119,14 @@ async def trigger_response(request: Request):
         validated_fields = await validate_request_data(request_data)
 
         if not validated_fields:
+            await KILL_BOT(
+                "Bot Failure", 
+                ghl_contact_id, 
+                [
+                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
+                ]
+            )
             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
         # Add validated fields to Redis with TTL
