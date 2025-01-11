@@ -47,7 +47,7 @@ async def initialize(request: Request):
         bot_filter_tag = data.get("bot_filter_tag")
 
         if not (ghl_contact_id and first_message and bot_filter_tag):
-            await log("error", "Missing required fields -- Canceling bot", 
+            await log("error", "Missing required fields", 
                       scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
@@ -65,7 +65,7 @@ async def initialize(request: Request):
             if not convo_id:
                 raise Exception("Failed to get convo id")
 
-            message_response = await ghl_api.send_message(ghl_contact_id, first_message)
+            message_response = await ghl_api.send_message("ghl_contact_id", first_message)
             if not message_response:
                 raise Exception("Failed to send message")
             message_id = message_response["messageId"]
