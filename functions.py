@@ -126,17 +126,30 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
         """Handle AI response and execute actions."""
         run_status = run_response.status
         run_id = run_response.id
-    
+
         if run_status == "completed":
-            await process_message_run(run_id, thread_id, ghl_contact_id)
-    
+            result = await process_message_run(run_id, thread_id, ghl_contact_id)
+            if result is None:
+                raise Exception("process_message_run returned None")
+
         elif run_status == "requires_action":
-            await process_function_run(run_response, thread_id, run_id, ghl_contact_id)
-            
+            result = await process_function_run(run_response, thread_id, run_id, ghl_contact_id)
+            if result is None:
+                raise Exception("process_function_run returned None")
+
         else:
             await log("error", f"Run Thread -- Run failed -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, run_response=run_response)
+            raise Exception("Run Thread status indicates failure")
 
     except Exception as e:
+        await KILL_BOT(
+            "Bot Failure", 
+            ghl_contact_id, 
+            [
+                (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
+                (lambda: ghl_api.add_tags(ghl_contact_id, ["bot failure"]), 1)
+            ]
+        )
         await log("error", "Process run response failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
 
 
@@ -177,6 +190,7 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
 
     except Exception as e:
         await log("error", "Process message run failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        return None
 
 
 async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
@@ -211,23 +225,42 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
 
 async def handoff_action(ghl_contact_id):
     """Handle handoff logic."""
-    await ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
-    await ghl_api.send_message("handoff", ghl_contact_id)
+    await KILL_BOT(
+        "Handoff Action", 
+        ghl_contact_id, 
+        [
+            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
+            (lambda: ghl_api.send_message("handoff", ghl_contact_id), 1)
+        ]
+    )
     await log("info", "Handoff action completed", ghl_contact_id=ghl_contact_id)
 
 
 async def end_action(ghl_contact_id):
     """Handle conversation end logic."""
-    await ghl_api.remove_tag(ghl_contact_id, ["automated_tag"])
-    await ghl_api.send_message("end", ghl_contact_id)
+    await KILL_BOT(
+        "End Action", 
+        ghl_contact_id, 
+        [
+            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
+            (lambda: ghl_api.send_message("force end", ghl_contact_id), 1)
+        ]
+    )
     await log("info", "Conversation ended", ghl_contact_id=ghl_contact_id)
 
 
 async def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
-    await ghl_api.send_message("tier 1", ghl_contact_id)
-    await ghl_api.send_message("Here is the information for Tier 1 resources.", ghl_contact_id)
+    await KILL_BOT(
+        "Tier 1 Action", 
+        ghl_contact_id, 
+        [
+            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
+            (lambda: ghl_api.send_message("tier 1", ghl_contact_id), 1)
+        ]
+    )
     await log("info", "Tier 1 action completed", ghl_contact_id=ghl_contact_id)
+
 
 
 
