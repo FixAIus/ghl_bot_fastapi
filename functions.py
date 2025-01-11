@@ -6,8 +6,6 @@ import httpx
 import asyncio
 
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 
 async def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
