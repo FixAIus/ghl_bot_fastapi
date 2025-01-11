@@ -22,15 +22,16 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
         success = False
         for _ in range(retries):
             try:
-                await action()
-                success = True
-                break
+                result = await action()
+                if result is not None:
+                    success = True
+                    break
             except Exception as e:
                 error_details = {"action": action.__name__, "error": str(e), "traceback": traceback.format_exc()}
                 continue
 
         if not success:
-            failed_actions.append(error_details)
+            failed_actions.append(error_details if 'error_details' in locals() else {"action": action.__name__, "error": "Returned None", "traceback": "N/A"})
 
     result = "all actions successful" if not failed_actions else "some actions failed"
     log_level = "info" if not failed_actions else "error"
@@ -41,6 +42,7 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
         ghl_contact_id=ghl_contact_id, 
         failed_actions=failed_actions or None
     )
+
 
 
 
