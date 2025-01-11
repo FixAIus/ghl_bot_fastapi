@@ -50,48 +50,62 @@ async def initialize(request: Request):
                       scope="Initialize", data=data, ghl_contact_id=data.get("ghl_contact_id"))
             return JSONResponse(content={"error": "Missing required fields"}, status_code=400)
 
-        # Step 1: Create a new thread in OpenAI
-        thread_response = await openai_client.beta.threads.create(
-            messages=[{"role": "assistant", "content": first_message}]
-        )
-        thread_id = thread_response.id
-        if not thread_id or thread_id in ["", "null", None]:
-            await log("error", "Failed to start thread -- Canceling bot", scope="Initialize", thread_response=thread_response, data=data)
-            return JSONResponse(content={"error": "Failed to start thread"}, status_code=400)
+        try:
+            # Step 1: Create a new thread in OpenAI
+            thread_response = await openai_client.beta.threads.create(
+                messages=[{"role": "assistant", "content": first_message}]
+            )
+            thread_id = thread_response.id
+            if not thread_id or thread_id in ["", "null", None]:
+                raise Exception("Failed to start thread")
 
-        # Step 2: Get convo_id and send updates to GHL contact
-        convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
-        if not convo_id:
-            return JSONResponse(content={"error": "Failed to get convo id"}, status_code=400)
+            # Step 2: Get convo_id and send updates to GHL contact
+            convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
+            if not convo_id:
+                raise Exception("Failed to get convo id")
 
-        message_response = await ghl_api.send_message(ghl_contact_id, first_message)
-        if not message_response:
-            return JSONResponse(content={"error": "Failed to send message"}, status_code=400)
-        message_id = message_response["messageId"]
+            message_response = await ghl_api.send_message(ghl_contact_id, first_message)
+            if not message_response:
+                raise Exception("Failed to send message")
+            message_id = message_response["messageId"]
 
-        update_data = {
-            "customFields": [
-                {"key": "ghl_convo_id", "field_value": convo_id},
-                {"key": "thread_id", "field_value": thread_id},
-                {"key": "recent_automated_message_id", "field_value": message_id}
-            ]
-        }
-        update_response = await ghl_api.update_contact(ghl_contact_id, update_data)
-        if not update_response:
-            return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
+            update_data = {
+                "customFields": [
+                    {"key": "ghl_convo_id", "field_value": convo_id},
+                    {"key": "thread_id", "field_value": thread_id},
+                    {"key": "recent_automated_message_id", "field_value": message_id}
+                ]
+            }
+            update_response = await ghl_api.update_contact(ghl_contact_id, update_data)
+            if not update_response:
+                raise Exception("Failed to update contact")
 
-        # Step 3: Add bot filter tag
-        tag_response = await ghl_api.add_tags(ghl_contact_id, [bot_filter_tag])
-        if not tag_response:
-            return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
+            # Step 3: Add bot filter tag
+            tag_response = await ghl_api.add_tags(ghl_contact_id, [bot_filter_tag])
+            if not tag_response:
+                raise Exception("Failed to add bot filter tag")
 
-        await log("info", f"Initialization -- Success -- {ghl_contact_id}",
-                  scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
+            await log("info", f"Initialization -- Success -- {ghl_contact_id}",
+                      scope="Initialize", ghl_contact_id=ghl_contact_id, input=data, output=update_data)
 
-        return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
+            return JSONResponse(content={"message": "Initialization successful", "ghl_contact_id": ghl_contact_id}, status_code=200)
+
+        except Exception as e:
+            await KILL_BOT(
+                "Bot Failure", 
+                ghl_contact_id, 
+                [
+                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
+                ]
+            )
+            await log("error", f"Initialization error: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
+            return JSONResponse(content={"error": str(e)}, status_code=400)
+
     except Exception as e:
         await log("error", f"Unexpected error during initialization: {str(e)}", scope="Initialize", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
+
 
 
 
