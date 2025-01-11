@@ -67,8 +67,8 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-                    (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
+                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
             return
@@ -84,8 +84,8 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-                    (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
+                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
             return
@@ -148,8 +148,8 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
             "Bot Failure", 
             ghl_contact_id, 
             [
-                (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-                (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
+                (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
             ]
         )
         await log("error", "Process run response failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
@@ -230,8 +230,8 @@ async def handoff_action(ghl_contact_id):
         "Handoff Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-            (ghl_api.send_message, [ghl_contact_id, "handoff"], {}, 1)
+            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.send_message, (ghl_contact_id, "handoff"), {}, 1)
         ]
     )
 
@@ -242,8 +242,8 @@ async def end_action(ghl_contact_id):
         "End Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-            (ghl_api.send_message, [ghl_contact_id, "force end"], {}, 1)
+            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.send_message, (ghl_contact_id, "force end"), {}, 1)
         ]
     )
 
@@ -254,8 +254,8 @@ async def tier1_action(ghl_contact_id):
         "Tier 1 Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-            (ghl_api.send_message, [ghl_contact_id, "tier 1"], {}, 1)
+            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.send_message, (ghl_contact_id, "tier 1"), {}, 1)
         ]
     )
 
