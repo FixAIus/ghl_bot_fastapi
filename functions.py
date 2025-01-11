@@ -24,13 +24,14 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
                 if result is not None:
                     success = True
                     break
-            except Exception:
-                continue
-
-        if not success:
-            # Extracting action name
-            action_name = action.__name__ if hasattr(action, "__name__") else "<unknown>"
-            failed_actions.append(action_name)
+            except Exception as e:
+                # Capture exception details
+                error_details = {
+                    "action_name": action.__name__ if hasattr(action, "__name__") else "<unknown>",
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                }
+                failed_actions.append(error_details)
 
     result = "all actions successful" if not failed_actions else "some actions failed"
     log_level = "info" if not failed_actions else "error"
