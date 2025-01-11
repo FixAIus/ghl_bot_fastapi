@@ -109,11 +109,11 @@ async def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_messag
                     break
                 if msg["direction"] == "inbound":
                     new_messages.insert(0, {"role": "user", "content": msg["body"]})
-            if found_recent:
+            if found_recent and new_messages:
                 await log("info", f"Compile Messages -- Success -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, compiled_messages=new_messages, all_messages=all_messages)
                 return new_messages
                 
-            await log("error", f"Compile Messages -- No message identifier found -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, 
+            await log("error", f"Compile Messages -- No message identifier found or no new messages-- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, 
                       all_messages=all_messages, msg_id=recent_automated_message_id)
         return None
         
