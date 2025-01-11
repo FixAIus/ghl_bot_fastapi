@@ -98,7 +98,7 @@ async def advance_convo(convo_data):
 async def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
     try:
         """Fetch and compile messages for processing."""
-        all_messages = await ghl_api.retrieve_messages(ghl_convo_id, ghl_contact_id)        
+        all_messages = await ghl_api.retrieve_messages(ghl_contact_id, ghl_convo_id)        
 
         if all_messages:
             new_messages = []
