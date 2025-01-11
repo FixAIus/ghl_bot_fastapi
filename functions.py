@@ -461,15 +461,6 @@ class GoHighLevelAPI:
             return None
 
 
-
-
-#
-#
-ghl_api = GoHighLevelAPI()
-#
-#
-
-
 async def fetch_ghl_access_token():
     """Fetch current GHL access token from Railway."""
     try:
