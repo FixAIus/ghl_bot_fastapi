@@ -24,14 +24,13 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
                 if result is not None:
                     success = True
                     break
-            except Exception as e:
-                # Capture exception details
-                error_details = {
-                    "action_name": action.__name__ if hasattr(action, "__name__") else "<unknown>",
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
-                }
-                failed_actions.append(error_details)
+            except Exception:
+                continue
+
+        if not success:
+            # Extracting action name
+            action_name = action.__name__ if hasattr(action, "__name__") else "<unknown>"
+            failed_actions.append(action_name)
 
     result = "all actions successful" if not failed_actions else "some actions failed"
     log_level = "info" if not failed_actions else "error"
@@ -229,7 +228,7 @@ class GoHighLevelAPI:
                 await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
-            log("error", "response.json", resp=response.json()#######################################################################################################################
+
             response_tags = response.json().get("tags", [])
             if any(tag in response_tags for tag in tags):
                 await log("error", "Remove Tags -- Some tags still present", ghl_contact_id=contact_id,
