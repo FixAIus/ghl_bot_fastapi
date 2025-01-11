@@ -64,7 +64,7 @@ async def initialize(request: Request):
         if not convo_id:
             return JSONResponse(content={"error": "Failed to get convo id"}, status_code=400)
 
-        message_response = await ghl_api.send_message(first_message, ghl_contact_id)
+        message_response = await ghl_api.send_message(ghl_contact_id, first_message)
         if not message_response:
             return JSONResponse(content={"error": "Failed to send message"}, status_code=400)
         message_id = message_response["messageId"]
