@@ -12,7 +12,8 @@ from functions import (
     fetch_ghl_access_token,
     make_redis_json_str,
     log,
-    GoHighLevelAPI
+    GoHighLevelAPI,
+    KILL_BOT
 )
 
 
