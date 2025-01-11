@@ -10,6 +10,7 @@ from functions import (
     KILL_BOT,
     ghl_api,
     GoHighLevelAPI,
+    openai_client,
     fetch_ghl_access_token,
     advance_convo,
     compile_messages,
