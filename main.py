@@ -20,8 +20,6 @@ from functions import (
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 
 async def listen_to_keyspace():
     """Listen for Redis keyspace notifications and log received data."""    
