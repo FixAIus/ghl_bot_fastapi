@@ -26,12 +26,13 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
                 if result is not None:
                     success = True
                     break
-            except Exception as e:
-                error_details = {"action": action.__name__, "error": str(e), "traceback": traceback.format_exc()}
+            except Exception:
                 continue
 
         if not success:
-            failed_actions.append(error_details if 'error_details' in locals() else {"action": action.__name__, "error": "Returned None", "traceback": "N/A"})
+            # Extracting action name for lambdas
+            action_name = action.__name__ if hasattr(action, "__name__") else "some <lambda> shit"
+            failed_actions.append(action_name)
 
     result = "all actions successful" if not failed_actions else "some actions failed"
     log_level = "info" if not failed_actions else "error"
@@ -186,7 +187,7 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
         await ghl_api.update_contact(ghl_contact_id, update_data)
 
         await log("info", "AI Message processed and sent", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
-        return message_id
+        return True
 
     except Exception as e:
         await log("error", "Process message run failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
@@ -215,7 +216,6 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
             tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
         )
 
-        await log("info", "Function run processed", ghl_contact_id=ghl_contact_id, function_args=function_args)
         return True
 
     except Exception as e:
@@ -230,10 +230,9 @@ async def handoff_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message("handoff", ghl_contact_id), 1)
+            (lambda: ghl_api.send_message("ghl_contact_id", "handoff"), 0)
         ]
     )
-    await log("info", "Handoff action completed", ghl_contact_id=ghl_contact_id)
 
 
 async def end_action(ghl_contact_id):
@@ -243,10 +242,9 @@ async def end_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message("force end", ghl_contact_id), 1)
+            (lambda: ghl_api.send_message(ghl_contact_id, "force end"), 0)
         ]
     )
-    await log("info", "Conversation ended", ghl_contact_id=ghl_contact_id)
 
 
 async def tier1_action(ghl_contact_id):
@@ -256,10 +254,9 @@ async def tier1_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message("tier 1", ghl_contact_id), 1)
+            (lambda: ghl_api.send_message(ghl_contact_id, "tier 1"), 0)
         ]
     )
-    await log("info", "Tier 1 action completed", ghl_contact_id=ghl_contact_id)
 
 
 
