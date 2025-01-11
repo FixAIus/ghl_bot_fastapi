@@ -230,8 +230,8 @@ async def handoff_action(ghl_contact_id):
         "Handoff Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, ["ghl_contact_id", ["bott"]], {}, 2),
-            (ghl_api.send_message, [ghl_contact_id, "handoff"], {}, 0)
+            (ghl_api.remove_tags, ["ghl_contact_id", ["bott"]], {}, 1),
+            (ghl_api.send_message, [ghl_contact_id, "handoff"], {}, 1)
         ]
     )
 
@@ -243,7 +243,7 @@ async def end_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-            (ghl_api.send_message, [ghl_contact_id, "force end"], {}, 0)
+            (ghl_api.send_message, [ghl_contact_id, "force end"], {}, 1)
         ]
     )
 
@@ -255,7 +255,7 @@ async def tier1_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
-            (ghl_api.send_message, [ghl_contact_id, "tier 1"], {}, 0)
+            (ghl_api.send_message, [ghl_contact_id, "tier 1"], {}, 1)
         ]
     )
 
