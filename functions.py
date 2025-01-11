@@ -18,11 +18,11 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
     """Kill Bot function to execute specified actions and log results."""
     failed_actions = []
 
-    for action, retries in actions:
+    for action, args, kwargs, retries in actions:
         success = False
         for _ in range(retries):
             try:
-                result = await action()
+                result = await action(*args, **kwargs)
                 if result is not None:
                     success = True
                     break
@@ -30,8 +30,8 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
                 continue
 
         if not success:
-            # Extracting action name for lambdas
-            action_name = action.__name__ if hasattr(action, "__name__") else "some <lambda> shit"
+            # Extracting action name
+            action_name = action.__name__ if hasattr(action, "__name__") else "<unknown>"
             failed_actions.append(action_name)
 
     result = "all actions successful" if not failed_actions else "some actions failed"
@@ -43,6 +43,7 @@ async def KILL_BOT(reason, ghl_contact_id, actions):
         ghl_contact_id=ghl_contact_id, 
         failed_actions=failed_actions or None
     )
+
 
 
 
@@ -66,8 +67,8 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-                    (lambda: ghl_api.add_tags(ghl_contact_id, ["bot failure"]), 1)
+                    (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+                    (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
                 ]
             )
             return
@@ -83,8 +84,8 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-                    (lambda: ghl_api.add_tags(ghl_contact_id, ["bot failure"]), 1)
+                    (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+                    (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
                 ]
             )
             return
@@ -147,8 +148,8 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
             "Bot Failure", 
             ghl_contact_id, 
             [
-                (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-                (lambda: ghl_api.add_tags(ghl_contact_id, ["bot failure"]), 1)
+                (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+                (ghl_api.add_tags, [ghl_contact_id, ["bot failure"]], {}, 1)
             ]
         )
         await log("error", "Process run response failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
@@ -229,8 +230,8 @@ async def handoff_action(ghl_contact_id):
         "Handoff Action", 
         ghl_contact_id, 
         [
-            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message("ghl_contact_id", "handoff"), 0)
+            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+            (ghl_api.send_message, [ghl_contact_id, "handoff"], {}, 0)
         ]
     )
 
@@ -241,8 +242,8 @@ async def end_action(ghl_contact_id):
         "End Action", 
         ghl_contact_id, 
         [
-            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message(ghl_contact_id, "force end"), 0)
+            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+            (ghl_api.send_message, [ghl_contact_id, "force end"], {}, 0)
         ]
     )
 
@@ -253,10 +254,11 @@ async def tier1_action(ghl_contact_id):
         "Tier 1 Action", 
         ghl_contact_id, 
         [
-            (lambda: ghl_api.remove_tags(ghl_contact_id, ["bott"]), 1),
-            (lambda: ghl_api.send_message(ghl_contact_id, "tier 1"), 0)
+            (ghl_api.remove_tags, [ghl_contact_id, ["bott"]], {}, 1),
+            (ghl_api.send_message, [ghl_contact_id, "tier 1"], {}, 0)
         ]
     )
+
 
 
 
