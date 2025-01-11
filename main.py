@@ -81,7 +81,7 @@ async def initialize(request: Request):
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
         # Step 3: Add bot filter tag
-        tag_response = await ghl_api.add_tag(ghl_contact_id, [bot_filter_tag])
+        tag_response = await ghl_api.add_tags(ghl_contact_id, [bot_filter_tag])
         if not tag_response:
             return JSONResponse(content={"error": "Failed update contact"}, status_code=400)
 
