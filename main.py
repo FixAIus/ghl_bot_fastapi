@@ -16,8 +16,6 @@ from functions import (
     process_message_run
 )
 
-ghl_api = GoHighLevelAPI()
-
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 
@@ -26,6 +24,8 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def listen_to_keyspace():
     """Listen for Redis keyspace notifications and log received data."""
+    ghl_api = GoHighLevelAPI()
+    
     # Subscribe to keyspace notifications
     pubsub = redis_client.pubsub()
     await pubsub.psubscribe("__keyevent@0__:expired")
