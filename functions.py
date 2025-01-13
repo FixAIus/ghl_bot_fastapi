@@ -260,7 +260,7 @@ async def tier1_action(ghl_contact_id):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
-            (ghl_api.send_message, (ghl_contact_id, "tier 1"), {}, 1)
+            (ghl_api.send_message, (ghl_contact_id, "This course has everything you need to get started\n"+os.getenv("BDMCOUSE_LINK"), {}, 1)
         ]
     )
 
