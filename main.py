@@ -27,6 +27,7 @@ async def listen_to_keyspace():
     # Subscribe to keyspace notifications
     pubsub = redis_client.pubsub()
     await pubsub.psubscribe("__keyevent@0__:expired")
+    await log("info", "Listening for keyspace notifications")
 
     # Listen for messages
     async for message in pubsub.listen():
