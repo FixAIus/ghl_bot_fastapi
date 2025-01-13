@@ -27,7 +27,7 @@ async def listen_to_keyspace():
     # Subscribe to keyspace notifications
     pubsub = redis_client.pubsub()
     await pubsub.psubscribe("__keyevent@0__:expired")
-
+################################################################################################################################################################################
     await log("info", "Listening for keyspace notifications")
 
     try:
@@ -35,8 +35,8 @@ async def listen_to_keyspace():
     except Exception as e:
         log("info", f"error: {e}")
 
-    log("info", f"regular try: {os.getenv('BDMCOURSE_LINK')")
-
+    log("info", f"regular try: {os.getenv('BDMCOURSE_LINK')}")
+############################################
     # Listen for messages
     async for message in pubsub.listen():
         if message["type"] == "pmessage":
