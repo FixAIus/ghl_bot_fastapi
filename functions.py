@@ -109,18 +109,18 @@ class GoHighLevelAPI:
                 response = await client.get(url, headers=headers, params=params)
 
             if response.status_code // 100 != 2:
-                await log("error", "Get convo ID API call failed", contact_id=contact_id,
+                await log("error", f"GHL API -- get_conversation_id API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             conversations = response.json().get("conversations", [])
             if not conversations:
-                await log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
+                await log("error", f"GHL API -- get_conversation_id No convo ID found -- {contact_id}", ghl_contact_id=contact_id, response=response.text)
                 return None
 
             return conversations[0].get("id")
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="get_conversation_id", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- get_conversation_id Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def retrieve_messages(self, contact_id, convo_id, limit=10, type="TYPE_INSTAGRAM"):
@@ -138,20 +138,20 @@ class GoHighLevelAPI:
                 response = await client.get(url, headers=headers, params=params)
 
             if response.status_code // 100 != 2:
-                await log("error", "Retrieve Messages -- API Call Failed",
-                          contact_id=contact_id, convo_id=convo_id,
+                await log("error", f"GHL API -- retrieve_messages API Failed -- {contact_id}",
+                          ghl_contact_id=contact_id, convo_id=convo_id,
                           status_code=response.status_code, response=response.text)
                 return []
 
             messages = response.json().get("messages", {}).get("messages", [])
             if not messages:
-                await log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- retrieve_messages No messages retrieved -- {contact_id}", ghl_contact_id=contact_id,
                           convo_id=convo_id, api_response=response.json())
                 return []
 
             return messages
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="retrieve_messages", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- retrieve_messages Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return []
 
     async def update_contact(self, contact_id, update_data):
@@ -168,13 +168,13 @@ class GoHighLevelAPI:
                 response = await client.put(url, headers=headers, json=update_data)
 
             if response.status_code // 100 != 2 or not response.json().get("succeded"):
-                await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- update_contact API failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="update_contact", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- update_contact Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def send_message(self, contact_id, message, attachments=[], type="IG"):
@@ -198,13 +198,13 @@ class GoHighLevelAPI:
                 response = await client.post(url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2 or not response.json().get("messageId"):
-                await log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- send_message API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="send_message", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- send_message Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def remove_tags(self, contact_id, tags):
@@ -224,19 +224,19 @@ class GoHighLevelAPI:
                 response = await client.request("DELETE", url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2:
-                await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- remove_tags API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
 
             response_tags = response.json().get("tags", [])
             if any(tag in response_tags for tag in tags):
-                await log("error", "Remove Tags -- Some tags still present", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- remove_tags Some tags still present -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="remove_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- remove_tags Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def add_tags(self, contact_id, tags):
@@ -256,34 +256,34 @@ class GoHighLevelAPI:
                 response = await client.post(url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2:
-                await log("error", "Add Tags -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- add_tags API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
 
             response_tags = response.json().get("tags", [])
             if not all(tag in response_tags for tag in tags):
-                await log("error", "Add Tags -- Not all tags added", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- add_tags Not all tags added -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="add_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- add_tags Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
 
 async def fetch_ghl_access_token():
     """Fetch current GHL access token from Railway."""
-    query = f"""
-    query {{
-      variables(
-        projectId: "{os.getenv('RAILWAY_PROJECT_ID')}"
-        environmentId: "{os.getenv('RAILWAY_ENVIRONMENT_ID')}"
-        serviceId: "{os.getenv('RAILWAY_SERVICE_ID')}"
-      )
-    }}
-    """
     try:
+        query = f"""
+        query {{
+          variables(
+            projectId: "{os.getenv('RAILWAY_PROJECT_ID')}"
+            environmentId: "{os.getenv('RAILWAY_ENVIRONMENT_ID')}"
+            serviceId: "{os.getenv('RAILWAY_SERVICE_ID')}"
+          )
+        }}
+        """
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://backboard.railway.app/graphql/v2",
@@ -300,11 +300,11 @@ async def fetch_ghl_access_token():
                 variables = response_data['data'].get('variables', {})
                 if variables and 'GHL_ACCESS' in variables:
                     return variables['GHL_ACCESS']
-        await log("error", "GHL Access -- Failed to fetch token",
-                  scope="GHL Access", status_code=response.status_code,
+        await log("error", "Fetch GHL Token -- Railway API Failed",
+                  scope="GHL Token", status_code=response.status_code,
                   response=response.text)
     except Exception as e:
-        await log("error", "GHL Access -- Request failed",
-                  scope="GHL Access", error=str(e),
+        await log("error", "Fetch GHL Token -- Code error",
+                  scope="GHL Token", error=str(e),
                   traceback=traceback.format_exc())
     return None
