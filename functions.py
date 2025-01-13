@@ -69,13 +69,12 @@ async def validate_request_data(data):
         fields = {field: data.get(field) for field in required_fields}
         missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
         if missing_fields:
-            # Insert failure handoff
-            await log("error", f"Validation -- Missing {', '.join(missing_fields)} -- Canceling Bot",
-                      ghl_contact_id=fields.get("ghl_contact_id"), scope="Redis Queue", received_fields=fields)
+            await log("error", f"Trigger Response -- Missing {', '.join(missing_fields)} -- Canceling Bot",
+                      ghl_contact_id=fields.get("ghl_contact_id"), scope="Trigger Response", received_fields=fields)
             return None
         return fields
     except Exception as e:
-        await log("error", f"Unexpected error: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
+        await log("error", f"Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
         return None
 
 
