@@ -41,7 +41,6 @@ ghl_api = GoHighLevelAPI()
 async def initialize(request: Request):
     try:
         data = await request.json()
-        await log("info", "Initialization -- Start", scope="Initialize", input=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
@@ -134,19 +133,19 @@ async def trigger_response(request: Request):
         result = await redis_client.setex(redis_key, 10, "0")
 
         if result:
-            await log("info", f"Redis Queue --- Set time delay --- {validated_fields['ghl_contact_id']}",
-                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
+            await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
+                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
                       ghl_contact_id=validated_fields['ghl_contact_id'])
             return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
         else:
-            await log("error", f"Redis Queue --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-                      scope="Redis Queue", redis_key=redis_key, input_fields=validated_fields,
+            await log("error", f"Trigger Response --- Failed to queue --- {validated_fields['ghl_contact_id']}",
+                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
                       ghl_contact_id=validated_fields['ghl_contact_id'])
             return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
     except Exception as e:
-        await log("error", f"Unexpected error during triggerResponse: {str(e)}", scope="Redis Queue", traceback=traceback.format_exc())
+        await log("error", f"Unexpected error during triggerResponse: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 
 
