@@ -94,7 +94,8 @@ async def advance_convo(convo_data):
         await process_run_response(run_response, thread_id, ghl_contact_id)
 
     except Exception as e:
-        await log("error", "Advance Convo Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        await log("error", f"Advance Convo -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
+
 
 
 async def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id):
@@ -114,12 +115,13 @@ async def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_messag
             if found_recent and new_messages:
                 return new_messages
                 
-            await log("error", f"Compile Messages -- No message identifier found or no new messages-- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, 
+            await log("error", f"Compile Messages -- No message identifier found or no new messages -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, 
                       all_messages=all_messages, msg_id=recent_automated_message_id)
         return None
         
     except Exception as e:
-        await log("error", "Compile Messages Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        await log("error", f"Compile Messages -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
+
 
 
 async def process_run_response(run_response, thread_id, ghl_contact_id):
@@ -151,7 +153,8 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
                 (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
             ]
         )
-        await log("error", "Process run response failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        await log("error", f"Process Run Response -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
+
 
 
 async def process_message_run(run_id, thread_id, ghl_contact_id):
@@ -161,8 +164,7 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
         ai_messages = ai_messages.data
         if not ai_messages:
             await log("error", f"AI Message -- Get message failed -- {ghl_contact_id}", 
-                      scope="AI Message", run_id=run_id, thread_id=thread_id, 
-                      response=ai_messages, ghl_contact_id=ghl_contact_id)
+                      run_id=run_id, thread_id=thread_id, response=ai_messages, ghl_contact_id=ghl_contact_id)
             return None
 
         ai_content = ai_messages[-1].content[0].text.value
@@ -186,12 +188,13 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
         }
         await ghl_api.update_contact(ghl_contact_id, update_data)
 
-        await log("info", "AI Message processed and sent", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
+        await log("info", f"AI Message -- Processed and sent -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
         return True
 
     except Exception as e:
-        await log("error", "Process message run failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        await log("error", f"Process Message Run -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
         return None
+
 
 
 async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
@@ -207,7 +210,7 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         elif "tier" in function_args:
             await tier1_action(ghl_contact_id)
         else:
-            await log("error", "Unhandled function key", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
+            await log("error", f"Process Function Run -- Unhandled function key -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
             return None
 
         await openai_client.beta.threads.runs.submit_tool_outputs( 
@@ -219,8 +222,9 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         return True
 
     except Exception as e:
-        await log("error", "Process Function Run Failed", ghl_contact_id=ghl_contact_id, error=str(e), traceback=traceback.format_exc())
+        await log("error", f"Process Function Run -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
         return None
+
 
 
 async def handoff_action(ghl_contact_id):
@@ -235,6 +239,7 @@ async def handoff_action(ghl_contact_id):
     )
 
 
+
 async def end_action(ghl_contact_id):
     """Handle conversation end logic."""
     await KILL_BOT(
@@ -247,6 +252,7 @@ async def end_action(ghl_contact_id):
     )
 
 
+
 async def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
     await KILL_BOT(
@@ -257,6 +263,7 @@ async def tier1_action(ghl_contact_id):
             (ghl_api.send_message, (ghl_contact_id, "tier 1"), {}, 1)
         ]
     )
+
 
 
 
@@ -297,18 +304,18 @@ class GoHighLevelAPI:
                 response = await client.get(url, headers=headers, params=params)
 
             if response.status_code // 100 != 2:
-                await log("error", "Get convo ID API call failed", contact_id=contact_id,
+                await log("error", f"GHL API -- get_conversation_id API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             conversations = response.json().get("conversations", [])
             if not conversations:
-                await log("error", "No Convo ID found", ghl_contact_id=contact_id, response=response.text)
+                await log("error", f"GHL API -- get_conversation_id No convo ID found -- {contact_id}", ghl_contact_id=contact_id, response=response.text)
                 return None
 
             return conversations[0].get("id")
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="get_conversation_id", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- get_conversation_id Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def retrieve_messages(self, contact_id, convo_id, limit=10, type="TYPE_INSTAGRAM"):
@@ -326,20 +333,20 @@ class GoHighLevelAPI:
                 response = await client.get(url, headers=headers, params=params)
 
             if response.status_code // 100 != 2:
-                await log("error", "Retrieve Messages -- API Call Failed",
-                          contact_id=contact_id, convo_id=convo_id,
+                await log("error", f"GHL API -- retrieve_messages API Failed -- {contact_id}",
+                          ghl_contact_id=contact_id, convo_id=convo_id,
                           status_code=response.status_code, response=response.text)
                 return []
 
             messages = response.json().get("messages", {}).get("messages", [])
             if not messages:
-                await log("error", "Retrieve Messages -- No messages found", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- retrieve_messages No messages retrieved -- {contact_id}", ghl_contact_id=contact_id,
                           convo_id=convo_id, api_response=response.json())
                 return []
 
             return messages
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="retrieve_messages", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- retrieve_messages Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return []
 
     async def update_contact(self, contact_id, update_data):
@@ -356,13 +363,13 @@ class GoHighLevelAPI:
                 response = await client.put(url, headers=headers, json=update_data)
 
             if response.status_code // 100 != 2 or not response.json().get("succeded"):
-                await log("error", "Update Contact -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- update_contact API failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="update_contact", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- update_contact Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def send_message(self, contact_id, message, attachments=[], type="IG"):
@@ -386,13 +393,13 @@ class GoHighLevelAPI:
                 response = await client.post(url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2 or not response.json().get("messageId"):
-                await log("error", "Send Message -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- send_message API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           status_code=response.status_code, response=response.text)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="send_message", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- send_message Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def remove_tags(self, contact_id, tags):
@@ -412,19 +419,19 @@ class GoHighLevelAPI:
                 response = await client.request("DELETE", url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2:
-                await log("error", "Remove Tags -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- remove_tags API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
 
             response_tags = response.json().get("tags", [])
             if any(tag in response_tags for tag in tags):
-                await log("error", "Remove Tags -- Some tags still present", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- remove_tags Some tags still present -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="remove_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- remove_tags Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
 
     async def add_tags(self, contact_id, tags):
@@ -444,20 +451,21 @@ class GoHighLevelAPI:
                 response = await client.post(url, headers=headers, json=payload)
 
             if response.status_code // 100 != 2:
-                await log("error", "Add Tags -- API Call Failed", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- add_tags API call failed -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, status_code=response.status_code, response=response.text)
                 return None
 
             response_tags = response.json().get("tags", [])
             if not all(tag in response_tags for tag in tags):
-                await log("error", "Add Tags -- Not all tags added", ghl_contact_id=contact_id,
+                await log("error", f"GHL API -- add_tags Not all tags added -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
 
             return response.json()
         except Exception as e:
-            await log("error", f"Unexpected error during GoHighLevelAPI: {str(e)}", scope="add_tags", ghl_contact_id=contact_id, traceback=traceback.format_exc())
+            await log("error", f"GHL API -- add_tags Unexpected error: {str(e)} -- {contact_id}", ghl_contact_id=contact_id, traceback=traceback.format_exc())
             return None
+
 
 
 
@@ -497,11 +505,11 @@ async def fetch_ghl_access_token():
                 variables = response_data['data'].get('variables', {})
                 if variables and 'GHL_ACCESS' in variables:
                     return variables['GHL_ACCESS']
-        await log("error", "GHL Access -- Failed to fetch token",
-                  scope="GHL Access", status_code=response.status_code,
+        await log("error", "Fetch GHL Token -- Railway API Failed",
+                  scope="GHL Token", status_code=response.status_code,
                   response=response.text)
     except Exception as e:
-        await log("error", "GHL Access -- Request failed",
-                  scope="GHL Access", error=str(e),
+        await log("error", "Fetch GHL Token -- Code error",
+                  scope="GHL Token", error=str(e),
                   traceback=traceback.format_exc())
     return None
