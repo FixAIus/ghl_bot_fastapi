@@ -203,6 +203,12 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
         function_args = json.loads(tool_call.function.arguments)
 
+        await openai_client.beta.threads.runs.submit_tool_outputs( 
+            thread_id=thread_id,
+            run_id=run_id,
+            tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
+        )
+        
         if "handoff" in function_args:
             await handoff_action(ghl_contact_id)
         elif "reason" in function_args:
@@ -212,12 +218,6 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         else:
             await log("error", f"Process Function Run -- Unhandled function key -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
             return None
-
-        await openai_client.beta.threads.runs.submit_tool_outputs( 
-            thread_id=thread_id,
-            run_id=run_id,
-            tool_outputs=[{"tool_call_id": tool_call.id, "output": "success"}]
-        )
 
         return True
 
