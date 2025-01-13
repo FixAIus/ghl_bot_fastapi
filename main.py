@@ -30,6 +30,13 @@ async def listen_to_keyspace():
 
     await log("info", "Listening for keyspace notifications")
 
+    try:
+        log("info", "trying to add"+os.getenv('BDMCOURSE_LINK'))
+    except Exception as e:
+        log("info", f"error: {e}")
+
+    log("info", f"regular try: {os.getenv('BDMCOURSE_LINK')")
+
     # Listen for messages
     async for message in pubsub.listen():
         if message["type"] == "pmessage":
