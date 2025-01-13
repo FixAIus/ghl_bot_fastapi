@@ -256,7 +256,7 @@ async def end_action(ghl_contact_id):
 async def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
     BDMCOURSE_MESSAGE="This course has everything you need to get started\n"+os.getenv('BDMCOURSE_LINK')
-    STOREBUILDER_MESSAGE="I've also gotten a lot of value from this ai storebuilder"+os.getenv('STOREBUILDER_LINK')
+    STOREBUILDER_MESSAGE="I've also gotten a lot of value from this ai storebuilder\n"+os.getenv('STOREBUILDER_LINK')
     await KILL_BOT(
         "Tier 1 Action", 
         ghl_contact_id, 
