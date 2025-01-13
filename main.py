@@ -38,11 +38,12 @@ async def listen_to_keyspace():
                 json_data = json.loads(expired_key)
 
                 # Log the reconstructed JSON object
-                await log("info", "Keyspace notification received and parsed", data=json_data)
+                await log("info", f"Advance Convo -- Triggering advance_convo() -- {json_data["ghl_contact_id"]}", data=json_data, scope="Advance Convo")
                 asyncio.create_task(advance_convo(json_data))
 
             except json.JSONDecodeError as e:
-                await log("error", "Failed to decode expired key as JSON", error=str(e), raw_data=message["data"])
+                await log("error", f"Advance Convo -- Failed to decode trigger info -- {json_data["ghl_contact_id"]}",
+                          error=str(e), raw_data=message["data"], ghl_contact_id=json_data["ghl_contact_id"])
 
 if __name__ == "__main__":
     asyncio.run(listen_to_keyspace())
