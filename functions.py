@@ -230,7 +230,7 @@ class GoHighLevelAPI:
                 return None
 
             response_tags = response.json().get("tags", [])
-            if any(tag in response_tags for tag in tags):
+            if any(tag.lower() in response_tags for tag in tags):
                 await log("error", f"GHL API -- remove_tags Some tags still present -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
@@ -262,7 +262,7 @@ class GoHighLevelAPI:
                 return None
 
             response_tags = response.json().get("tags", [])
-            if not all(tag in response_tags for tag in tags):
+            if not all(tag.lower in response_tags for tag in tags):
                 await log("error", f"GHL API -- add_tags Not all tags added -- {contact_id}", ghl_contact_id=contact_id,
                           tags=tags, response_tags=response_tags)
                 return None
