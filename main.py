@@ -46,7 +46,7 @@ async def initialize(request: Request):
     try:
         incoming = await request.json()
         data = incoming.get("customData")
-        log("info", f"customData", custom=data)
+
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
