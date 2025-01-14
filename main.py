@@ -45,6 +45,7 @@ ghl_api = GoHighLevelAPI()
 async def initialize(request: Request):
     try:
         data = await request.json().get("customData")
+        log("info", f"customData", custom=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
         bot_filter_tag = data.get("bot_filter_tag")
