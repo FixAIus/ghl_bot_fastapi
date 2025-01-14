@@ -264,8 +264,7 @@ async def tier1_action(ghl_contact_id, bot_filter_tag):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
-            (ghl_api.send_message, (ghl_contact_id, "This course has everything you need to get started\n"+os.getenv('BDMCOURSE_LINK')), {}, 1),
-            (ghl_api.send_message, (ghl_contact_id, "I've also gotten a lot of value from this ai storebuilder\n"+os.getenv('STOREBUILDER_LINK')), {}, 1)
+            (ghl_api.send_message, (ghl_contact_id, "I made a video that'll help you make progress, enjoy\n"+os.getenv('STOREBUILDERVIDEO_LINK')), {}, 1)
 
         ]
     )
