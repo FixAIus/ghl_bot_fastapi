@@ -214,7 +214,7 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         elif "reason" in function_args:
             await end_action(ghl_contact_id)
         elif "tier" in function_args:
-            if function.tier == 1:
+            if function_args.tier == 1:
                 await tier1_action(ghl_contact_id)
             else:
                 await handoff_action(ghl_contact_id)
