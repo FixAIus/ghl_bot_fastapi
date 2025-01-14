@@ -214,7 +214,10 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         elif "reason" in function_args:
             await end_action(ghl_contact_id)
         elif "tier" in function_args:
-            await tier1_action(ghl_contact_id)
+            if function.tier == 1:
+                await tier1_action(ghl_contact_id)
+            else:
+                await handoff_action(ghl_contact_id)
         else:
             await log("error", f"Process Function Run -- Unhandled function key -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
             return None
@@ -255,15 +258,13 @@ async def end_action(ghl_contact_id):
 
 async def tier1_action(ghl_contact_id):
     """Handle Tier 1 response logic."""
-    BDMCOURSE_MESSAGE="This course has everything you need to get started\n"+os.getenv('BDMCOURSE_LINK')
-    STOREBUILDER_MESSAGE="I've also gotten a lot of value from this ai storebuilder\n"+os.getenv('STOREBUILDER_LINK')
     await KILL_BOT(
         "Tier 1 Action", 
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
-            (ghl_api.send_message, (ghl_contact_id, BDMCOURSE_MESSAGE), {}, 1),
-            (ghl_api.send_message, (ghl_contact_id, STOREBUILDER_MESSAGE), {}, 1)
+            (ghl_api.send_message, (ghl_contact_id, "This course has everything you need to get started\n"+os.getenv('BDMCOURSE_LINK')), {}, 1),
+            (ghl_api.send_message, (ghl_contact_id, "I've also gotten a lot of value from this ai storebuilder\n"+os.getenv('STOREBUILDER_LINK')), {}, 1)
 
         ]
     )
