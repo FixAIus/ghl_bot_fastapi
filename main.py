@@ -44,7 +44,8 @@ ghl_api = GoHighLevelAPI()
 @app.post("/initialize")
 async def initialize(request: Request):
     try:
-        data = await request.json().get("customData")
+        incoming = await request.json()
+        data = incoming.get("customData")
         log("info", f"customData", custom=data)
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
