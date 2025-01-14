@@ -59,6 +59,7 @@ async def advance_convo(convo_data):
         thread_id = convo_data.get("thread_id")
         assistant_id = convo_data.get("assistant_id")
         recent_automated_message_id = convo_data.get("recent_automated_message_id")
+        bot_filter_tag = convo_data.get("bot_filter_tag")
 
         # Compile messages
         messages = await compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_message_id)
@@ -67,7 +68,7 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
@@ -84,14 +85,14 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
             return
 
         # Process AI response
-        await process_run_response(run_response, thread_id, ghl_contact_id)
+        await process_run_response(run_response, thread_id, ghl_contact_id, bot_filter_tag)
 
     except Exception as e:
         await log("error", f"Advance Convo -- {str(e)} -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, traceback=traceback.format_exc())
@@ -124,7 +125,7 @@ async def compile_messages(ghl_contact_id, ghl_convo_id, recent_automated_messag
 
 
 
-async def process_run_response(run_response, thread_id, ghl_contact_id):
+async def process_run_response(run_response, thread_id, ghl_contact_id, bot_filter_tag):
     try:
         """Handle AI response and execute actions."""
         run_status = run_response.status
@@ -136,7 +137,7 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
                 raise Exception("process_message_run returned None")
 
         elif run_status == "requires_action":
-            result = await process_function_run(run_response, thread_id, run_id, ghl_contact_id)
+            result = await process_function_run(run_response, thread_id, run_id, ghl_contact_id, bot_filter_tag)
             if result is None:
                 raise Exception("process_function_run returned None")
 
@@ -149,7 +150,7 @@ async def process_run_response(run_response, thread_id, ghl_contact_id):
             "Bot Failure", 
             ghl_contact_id, 
             [
-                (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
                 (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
             ]
         )
@@ -197,7 +198,7 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
 
 
 
-async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
+async def process_function_run(run_response, thread_id, run_id, ghl_contact_id, bot_filter_tag):
     """Process the function run based on the key in function arguments."""
     try:
         tool_call = run_response.required_action.submit_tool_outputs.tool_calls[0]
@@ -210,14 +211,14 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
         )
         
         if "handoff" in function_args:
-            await handoff_action(ghl_contact_id)
+            await handoff_action(ghl_contact_id, bot_filter_tag)
         elif "reason" in function_args:
-            await end_action(ghl_contact_id)
+            await end_action(ghl_contact_id, bot_filter_tag)
         elif "tier" in function_args:
             if function_args['tier'] == "1":
-                await tier1_action(ghl_contact_id)
+                await tier1_action(ghl_contact_id, bot_filter_tag)
             else:
-                await handoff_action(ghl_contact_id)
+                await handoff_action(ghl_contact_id, bot_filter_tag)
         else:
             await log("error", f"Process Function Run -- Unhandled function key -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, key=list(function_args.keys())[0])
             return None
@@ -230,39 +231,39 @@ async def process_function_run(run_response, thread_id, run_id, ghl_contact_id):
 
 
 
-async def handoff_action(ghl_contact_id):
+async def handoff_action(ghl_contact_id, bot_filter_tag):
     """Handle handoff logic."""
     await KILL_BOT(
         "Handoff Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
             (ghl_api.send_message, (ghl_contact_id, "handoff"), {}, 1)
         ]
     )
 
 
 
-async def end_action(ghl_contact_id):
+async def end_action(ghl_contact_id, bot_filter_tag):
     """Handle conversation end logic."""
     await KILL_BOT(
         "End Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
             (ghl_api.send_message, (ghl_contact_id, "force end"), {}, 1)
         ]
     )
 
 
 
-async def tier1_action(ghl_contact_id):
+async def tier1_action(ghl_contact_id, bot_filter_tag):
     """Handle Tier 1 response logic."""
     await KILL_BOT(
         "Tier 1 Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
             (ghl_api.send_message, (ghl_contact_id, "This course has everything you need to get started\n"+os.getenv('BDMCOURSE_LINK')), {}, 1),
             (ghl_api.send_message, (ghl_contact_id, "I've also gotten a lot of value from this ai storebuilder\n"+os.getenv('STOREBUILDER_LINK')), {}, 1)
 
