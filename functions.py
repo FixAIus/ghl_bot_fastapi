@@ -54,6 +54,7 @@ def make_redis_json_str(input_json):
         "recent_automated_message_id",
         "thread_id",
         "assistant_id",
+        "bot_filter_tag"
     ]
     ordered_data = {field: input_json[field] for field in fields_order}
     formatted_string = json.dumps(ordered_data, separators=(",", ":"), sort_keys=False)
@@ -65,7 +66,7 @@ def make_redis_json_str(input_json):
 async def validate_request_data(data):
     """Returns validated fields dictionary or None if validation fails."""
     try:
-        required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id", "ghl_convo_id"]
+        required_fields = ["thread_id", "assistant_id", "ghl_contact_id", "recent_automated_message_id", "ghl_convo_id", "bot_filter_tag"]
         fields = {field: data.get(field) for field in required_fields}
         missing_fields = [field for field in required_fields if not fields[field] or fields[field] in ["", "null", None]]
         if missing_fields:
@@ -74,7 +75,7 @@ async def validate_request_data(data):
             return None
         return fields
     except Exception as e:
-        await log("error", f"Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
+        await log("error", f"Validate Fields -- Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
         return None
 
 
