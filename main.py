@@ -357,7 +357,7 @@ async def full_cycle_test():
         
         # Step 2: Simulate Redis operations
         redis_key = f"loadtest:{thread_id}"
-        await redis_client.setex(redis_key, 10, json.dumps({
+        await redis_client.setex(redis_key, 40, json.dumps({
             "thread_id": thread_id,
             "status": "processing"
         }))
