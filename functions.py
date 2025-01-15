@@ -238,6 +238,7 @@ async def handoff_action(ghl_contact_id, bot_filter_tag):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+            (ghl_api.add_tags, (ghl_contact_id, ["handoff"]), {}, 1),
             (ghl_api.send_message, (ghl_contact_id, "handoff"), {}, 1)
         ]
     )
