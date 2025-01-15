@@ -267,3 +267,83 @@ async def load_test():
             content={"error": str(e)}, 
             status_code=500
         )
+
+@app.post("/loadtest/full-flow")
+async def full_flow_test():
+    try:
+        # 1. Simulate OpenAI thread creation
+        thread_id = f"thread_{uuid.uuid4()}"
+        await asyncio.sleep(0.1)  # Simulate API delay
+        
+        # 2. Simulate Redis operations
+        redis_key = f"loadtest:{thread_id}"
+        await redis_client.setex(redis_key, 10, "test_value")
+        
+        # 3. Simulate GHL operations
+        mock_ghl_response = {
+            "contact_id": f"contact_{uuid.uuid4()}",
+            "conversation_id": f"convo_{uuid.uuid4()}",
+            "message_id": f"msg_{uuid.uuid4()}"
+        }
+        await asyncio.sleep(0.2)  # Simulate API delay
+        
+        # 4. Simulate full process completion
+        return JSONResponse(
+            content={
+                "status": "success",
+                "flow": "complete",
+                "thread_id": thread_id,
+                "ghl_data": mock_ghl_response,
+                "redis_key": redis_key
+            }, 
+            status_code=200
+        )
+        
+    except Exception as e:
+        await log("error", f"Full flow test failed: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)}, 
+            status_code=500
+        )
+
+# Optional: Add endpoint to test with configurable delays
+@app.post("/loadtest/full-flow/{delay}")
+async def full_flow_test_with_delay(delay: float):
+    try:
+        # Cap maximum delay for safety
+        delay = min(float(delay), 2.0)
+        
+        # 1. OpenAI simulation
+        await asyncio.sleep(delay * 0.3)  # 30% of delay
+        thread_id = f"thread_{uuid.uuid4()}"
+        
+        # 2. Redis operation
+        redis_key = f"loadtest:{thread_id}"
+        await redis_client.setex(redis_key, 10, "test_value")
+        
+        # 3. GHL simulation
+        await asyncio.sleep(delay * 0.7)  # 70% of delay
+        mock_ghl_response = {
+            "contact_id": f"contact_{uuid.uuid4()}",
+            "conversation_id": f"convo_{uuid.uuid4()}",
+            "message_id": f"msg_{uuid.uuid4()}"
+        }
+        
+        return JSONResponse(
+            content={
+                "status": "success",
+                "flow": "complete",
+                "thread_id": thread_id,
+                "ghl_data": mock_ghl_response,
+                "redis_key": redis_key,
+                "total_delay": delay
+            }, 
+            status_code=200
+        )
+        
+    except Exception as e:
+        await log("error", f"Full flow test with delay failed: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)}, 
+            status_code=500
+        )
