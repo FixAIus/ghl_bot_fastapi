@@ -166,46 +166,46 @@ async def trigger_response(request: Request):
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 ### ENDING TESTING CODE ###
 
-### ORIGINAL CODE ###
-@app.post("/triggerResponse")
-async def trigger_response(request: Request):
-    try:
-        request_data = await request.json()
-        validated_fields = await validate_request_data(request_data)
+ ### ORIGINAL CODE ###
+# @app.post("/triggerResponse")
+# async def trigger_response(request: Request):
+#     try:
+#         request_data = await request.json()
+#         validated_fields = await validate_request_data(request_data)
 
-        if not validated_fields:
-            ghl_contact_id=request_data.get("ghl_contact_id")
-            bot_filter_tag=request_data.get("bot_filter_tag")
-            await KILL_BOT(
-                "Bot Failure", 
-                ghl_contact_id, 
-                [
-                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
-                    (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
-                ]
-            )
-            return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
+#         if not validated_fields:
+#             ghl_contact_id=request_data.get("ghl_contact_id")
+#             bot_filter_tag=request_data.get("bot_filter_tag")
+#             await KILL_BOT(
+#                 "Bot Failure", 
+#                 ghl_contact_id, 
+#                 [
+#                     (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+#                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
+#                 ]
+#             )
+#             return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
-        # Add validated fields to Redis with TTL
-        redis_key = make_redis_json_str(validated_fields)
-        result = await redis_client.setex(redis_key, 10, "0")
+#         # Add validated fields to Redis with TTL
+#         redis_key = make_redis_json_str(validated_fields)
+#         result = await redis_client.setex(redis_key, 10, "0")
 
-        if result:
-            await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
-                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+#         if result:
+#             await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
+#                       scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
+#                       ghl_contact_id=validated_fields['ghl_contact_id'])
+#             return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
-        else:
-            await log("error", f"Trigger Response --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+#         else:
+#             await log("error", f"Trigger Response --- Failed to queue --- {validated_fields['ghl_contact_id']}",
+#                       scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
+#                       ghl_contact_id=validated_fields['ghl_contact_id'])
+#             return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
 
-    except Exception as e:
-        await log("error", f"Trigger Response: Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal code error"}, status_code=500)
-
+#     except Exception as e:
+#         await log("error", f"Trigger Response: Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
+#         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
+### END ORIGINAL CODE ###
 
 
 
