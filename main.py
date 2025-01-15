@@ -15,7 +15,11 @@ from functions import (
     GoHighLevelAPI,
     KILL_BOT
 )
+import uuid
 
+IS_LOAD_TEST = os.getenv("LOAD_TEST_MODE", "false").lower() == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+TEST_REDIS_PREFIX = "loadtest:"
 
 app = FastAPI()
 
@@ -117,52 +121,46 @@ async def initialize(request: Request):
 ###### TESTING PURPOSES ###
 @app.post("/triggerResponse")
 async def trigger_response(request: Request):
-   try:
-       request_data = await request.json()
-
-        TESTING: Allow mock data to bypass strict validation
-        This block lets mock IDs (e.g., "mock_*") pass validation.
-       if "mock" in request_data.get("ghl_contact_id", ""):
-           validated_fields = {
-               "ghl_contact_id": request_data["ghl_contact_id"],
-               "thread_id": request_data.get("thread_id", "mock_thread"),
-               "assistant_id": request_data.get("assistant_id", "mock_assistant"),
-               "recent_automated_message_id": request_data.get("recent_automated_message_id", "mock_msg"),
-               "ghl_convo_id": request_data.get("ghl_convo_id", "mock_convo")
-           }
-       else:
-            Standard validation for non-mock data
-            validated_fields = await validate_request_data(request_data)
-
-        if not validated_fields:
-            await KILL_BOT(
-                "Bot Failure",
-                request_data.get("ghl_contact_id", "unknown"),
-                [
-                    (ghl_api.remove_tags, (request_data.get("ghl_contact_id", "unknown"), ["bott"]), {}, 1),
-                    (ghl_api.add_tags, (request_data.get("ghl_contact_id", "unknown"), ["bot failure"]), {}, 1)
-                ]
+    try:
+        # Safety check for production
+        if IS_LOAD_TEST and ENVIRONMENT == "production":
+            return JSONResponse(
+                content={"error": "Load testing not allowed in production"}, 
+                status_code=403
             )
-            return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
 
-        # Add validated fields to Redis with TTL
-        redis_key = make_redis_json_str(validated_fields)
+        request_data = await request.json()
+        
+        # Bypass validation for load testing
+        if IS_LOAD_TEST:
+            validated_fields = {
+                "ghl_contact_id": "test_contact",
+                "thread_id": "test_thread",
+                "assistant_id": "test_assistant",
+                "recent_automated_message_id": "test_message",
+                "ghl_convo_id": "test_convo"
+            }
+            redis_key = f"{TEST_REDIS_PREFIX}{uuid.uuid4()}"
+        else:
+            validated_fields = await validate_request_data(request_data)
+            redis_key = make_redis_json_str(validated_fields)
+
+        # Set in Redis with TTL
         result = await redis_client.setex(redis_key, 10, "0")
 
         if result:
-            await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
-                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
-
+            return JSONResponse(
+                content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, 
+                status_code=200
+            )
         else:
-            await log("error", f"Trigger Response --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-                      scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-                      ghl_contact_id=validated_fields['ghl_contact_id'])
-            return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
+            return JSONResponse(
+                content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, 
+                status_code=200
+            )
 
     except Exception as e:
-        await log("error", f"Trigger Response: Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
+        await log("error", f"Trigger Response: Unexpected error: {str(e)}", scope="Trigger Response")
         return JSONResponse(content={"error": "Internal code error"}, status_code=500)
 ### ENDING TESTING CODE ###
 
@@ -243,3 +241,16 @@ async def test_endpoint(request: Request):
     except Exception as e:
         log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
         return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+
+@app.post("/cleanup-loadtest")
+async def cleanup_loadtest():
+    if not IS_LOAD_TEST:
+        return JSONResponse(content={"error": "Not in load test mode"}, status_code=403)
+    
+    try:
+        test_keys = await redis_client.keys(f"{TEST_REDIS_PREFIX}*")
+        if test_keys:
+            await redis_client.delete(*test_keys)
+        return JSONResponse(content={"message": f"Cleaned up {len(test_keys)} test keys"}, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={"error": f"Cleanup failed: {str(e)}"}, status_code=500)
