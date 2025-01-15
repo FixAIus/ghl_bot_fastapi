@@ -347,3 +347,52 @@ async def full_flow_test_with_delay(delay: float):
             content={"error": str(e)}, 
             status_code=500
         )
+
+@app.get("/loadtest/full-cycle")
+async def full_cycle_test():
+    try:
+        # Step 1: Simulate OpenAI thread creation
+        thread_id = f"thread_{uuid.uuid4()}"
+        await asyncio.sleep(0.1)  # Simulate API delay
+        
+        # Step 2: Simulate Redis operations
+        redis_key = f"loadtest:{thread_id}"
+        await redis_client.setex(redis_key, 10, json.dumps({
+            "thread_id": thread_id,
+            "status": "processing"
+        }))
+        
+        # Step 3: Simulate GHL operations
+        mock_message = {
+            "messageId": f"msg_{uuid.uuid4()}",
+            "content": "Test message"
+        }
+        await asyncio.sleep(0.2)  # Simulate API delay
+        
+        # Step 4: Update Redis with result
+        await redis_client.setex(redis_key, 10, json.dumps({
+            "thread_id": thread_id,
+            "status": "complete",
+            "message": mock_message
+        }))
+        
+        return JSONResponse(
+            content={
+                "status": "success",
+                "steps_completed": {
+                    "openai": True,
+                    "redis": True,
+                    "ghl": True
+                },
+                "thread_id": thread_id,
+                "message_id": mock_message["messageId"]
+            }, 
+            status_code=200
+        )
+        
+    except Exception as e:
+        await log("error", f"Full cycle test failed: {str(e)}")
+        return JSONResponse(
+            content={"error": str(e)}, 
+            status_code=500
+        )
