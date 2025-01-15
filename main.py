@@ -19,10 +19,6 @@ from functions import (
 
 app = FastAPI()
 
-@app.get("/loaderio-9f905956f9bac67c3b7f9ad9c24c0c9f.txt")
-async def serve_loaderio_verification():
-    return PlainTextResponse("loaderio-9f905956f9bac67c3b7f9ad9c24c0c9f")
-
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
 @app.on_event("startup")
@@ -114,57 +110,7 @@ async def initialize(request: Request):
 
 
 
-###### TESTING PURPOSES
-#@app.post("/triggerResponse")
-#async def trigger_response(request: Request):
-#    try:
-#        request_data = await request.json()
 
-        # TESTING: Allow mock data to bypass strict validation
-        # This block lets mock IDs (e.g., "mock_*") pass validation.
-#        if "mock" in request_data.get("ghl_contact_id", ""):
-#            validated_fields = {
-#                "ghl_contact_id": request_data["ghl_contact_id"],
-#                "thread_id": request_data.get("thread_id", "mock_thread"),
-#                "assistant_id": request_data.get("assistant_id", "mock_assistant"),
-#                "recent_automated_message_id": request_data.get("recent_automated_message_id", "mock_msg"),
-#                "ghl_convo_id": request_data.get("ghl_convo_id", "mock_convo")
-#            }
-#        else:
-            # Standard validation for non-mock data
-    #         validated_fields = await validate_request_data(request_data)
-
-    #     if not validated_fields:
-    #         await KILL_BOT(
-    #             "Bot Failure",
-    #             request_data.get("ghl_contact_id", "unknown"),
-    #             [
-    #                 (ghl_api.remove_tags, (request_data.get("ghl_contact_id", "unknown"), ["bott"]), {}, 1),
-    #                 (ghl_api.add_tags, (request_data.get("ghl_contact_id", "unknown"), ["bot failure"]), {}, 1)
-    #             ]
-    #         )
-    #         return JSONResponse(content={"error": "Invalid request data"}, status_code=400)
-
-    #     # Add validated fields to Redis with TTL
-    #     redis_key = make_redis_json_str(validated_fields)
-    #     result = await redis_client.setex(redis_key, 10, "0")
-
-    #     if result:
-    #         await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
-    #                   scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-    #                   ghl_contact_id=validated_fields['ghl_contact_id'])
-    #         return JSONResponse(content={"message": "Response queued", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
-
-    #     else:
-    #         await log("error", f"Trigger Response --- Failed to queue --- {validated_fields['ghl_contact_id']}",
-    #                   scope="Trigger Response", redis_key=redis_key, input_fields=validated_fields,
-    #                   ghl_contact_id=validated_fields['ghl_contact_id'])
-    #         return JSONResponse(content={"message": "Failed to queue", "ghl_contact_id": validated_fields['ghl_contact_id']}, status_code=200)
-
-    # except Exception as e:
-    #     await log("error", f"Trigger Response: Unexpected error: {str(e)}", scope="Trigger Response", traceback=traceback.format_exc())
-    #     return JSONResponse(content={"error": "Internal code error"}, status_code=500)
-### ENDING TESTING CODE
 
 ### ORIGINAL CODE ###
 @app.post("/triggerResponse")
