@@ -255,13 +255,9 @@ async def cleanup_loadtest():
     except Exception as e:
         return JSONResponse(content={"error": f"Cleanup failed: {str(e)}"}, status_code=500)
 
-@app.post("/loadtest")
+@app.get("/loadtest")
 async def load_test():
     try:
-        # Simulate some basic processing
-        redis_key = f"loadtest:{uuid.uuid4()}"
-        result = await redis_client.setex(redis_key, 10, "0")
-        
         return JSONResponse(
             content={"status": "success"}, 
             status_code=200
