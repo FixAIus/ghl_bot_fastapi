@@ -124,8 +124,8 @@ async def trigger_response(request: Request):
         validated_fields = await validate_request_data(data)
 
         if not validated_fields:
-            ghl_contact_id=request_data.get("ghl_contact_id")
-            bot_filter_tag=request_data.get("bot_filter_tag")
+            ghl_contact_id=data.get("ghl_contact_id")
+            bot_filter_tag=data.get("bot_filter_tag")
             await KILL_BOT(
                 "Bot Failure", 
                 ghl_contact_id, 
