@@ -19,9 +19,6 @@ from functions import (
 
 app = FastAPI()
 
-@app.get("/loaderio-9f905956f9bac67c3b7f9ad9c24c0c9f.txt")
-async def serve_loaderio_verification():
-    return PlainTextResponse("loaderio-9f905956f9bac67c3b7f9ad9c24c0c9f")
 
 redis_url = os.getenv("REDIS_URL")
 redis_client = Redis.from_url(redis_url, decode_responses=True)
