@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from redis.asyncio import Redis
 from openai import AsyncOpenAI
 import os
+import random
 import json
 import traceback
 import httpx
@@ -135,7 +136,7 @@ async def trigger_response(request: Request):
 
         # Add validated fields to Redis with TTL
         redis_key = make_redis_json_str(validated_fields)
-        result = await redis_client.setex(redis_key, 10, "0")
+        result = await redis_client.setex(redis_key, random.randint(60, 180), "0")
 
         if result:
             await log("info", f"Trigger Response --- Time delay set --- {validated_fields['ghl_contact_id']}",
