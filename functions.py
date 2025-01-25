@@ -189,7 +189,6 @@ async def process_message_run(run_id, thread_id, ghl_contact_id):
         }
         await ghl_api.update_contact(ghl_contact_id, update_data)
 
-        await log("info", f"AI Message -- Processed and sent -- {ghl_contact_id}", ghl_contact_id=ghl_contact_id, new_automated_message_id=message_id)
         return True
 
     except Exception as e:
