@@ -68,7 +68,7 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
@@ -85,7 +85,7 @@ async def advance_convo(convo_data):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
@@ -150,7 +150,7 @@ async def process_run_response(run_response, thread_id, ghl_contact_id, bot_filt
             "Bot Failure", 
             ghl_contact_id, 
             [
-                (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+                (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
                 (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
             ]
         )
@@ -236,7 +236,7 @@ async def handoff_action(ghl_contact_id, bot_filter_tag):
         "Handoff Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
             (ghl_api.add_tags, (ghl_contact_id, ["handoff"]), {}, 1)
         ]
     )
@@ -249,7 +249,7 @@ async def end_action(ghl_contact_id, bot_filter_tag):
         "End Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1)
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2)
         ]
     )
 
@@ -261,7 +261,7 @@ async def tier1_action(ghl_contact_id, bot_filter_tag):
         "Tier 1 Action", 
         ghl_contact_id, 
         [
-            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+            (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
             (ghl_api.send_message, (ghl_contact_id, "I made a video that'll help you make progress, enjoy\n"+os.getenv('STOREBUILDERVIDEO_LINK')), {}, 1)
 
         ]
