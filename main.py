@@ -99,7 +99,7 @@ async def initialize(request: Request):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, ["bott"]), {}, 2),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
@@ -128,7 +128,7 @@ async def trigger_response(request: Request):
                 "Bot Failure", 
                 ghl_contact_id, 
                 [
-                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 1),
+                    (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
                     (ghl_api.add_tags, (ghl_contact_id, ["bot failure"]), {}, 1)
                 ]
             )
