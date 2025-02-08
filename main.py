@@ -12,7 +12,7 @@ app = FastAPI()
 
 @app.post("/update-opportunity")
 async def update_opportunity(data: RequestData):
-    await log("info", "Request received")
+    await log("info", "Request  received")
     try:
         # Placeholder logic for valid requests
         # TODO: Implement the actual logic for updating the opportunity
