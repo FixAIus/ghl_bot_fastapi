@@ -84,36 +84,3 @@ class AirtableClient:
                 response_content = "No response or not JSON format"
             await log("error", "Exception occurred in update_record", exception=str(e), response=response_content, fields=fields)
             return None
-
-# Example usage
-async def main():
-    # Define your API key, base ID, and table ID here
-    api_key = "patMP43xP8KHVfepX.af949fb753d690b61bb9ce7cede5c66f908cbfe0086e0cecf354bd7ccc7077ac"
-    base_id = "appqlPGp6IWfdyZMp"
-    table_id = "tblD1vQglA9gq73i7"
-
-    airtable_client = AirtableClient(api_key, base_id, table_id)
-
-    try:
-        # Create a new record
-        fields = {
-            "GHL Contact ID": "Value210909",
-            "GHL Name": "Value22"
-        }
-        record_id = await airtable_client.create_record(fields)
-        if record_id:
-            print(f"Record created with ID: {record_id}")
-
-            # Update the record
-            updated_fields = {
-                "GHL Contact ID": "NewValjiue21",
-                "GHL Name": "NewValue22"
-            }
-            update_result = await airtable_client.update_record(record_id, updated_fields)
-            if update_result:
-                print("Record updated:", update_result)
-    except Exception as e:
-        await log("error", "Exception occurred in main", exception=str(e))
-
-# Run the example
-asyncio.run(main()) 

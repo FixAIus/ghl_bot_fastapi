@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, model_validator
 from functions import log, AirtableClient  # Import AirtableClient
 import traceback
 
@@ -11,7 +11,7 @@ class RequestData(BaseModel):
     opportunity_sub_stage: str = None  # Optional field
     airtable_record_id: str = None  # New optional field
 
-    @field_validator(mode='before')
+    @model_validator(mode='before')
     def check_required_fields(cls, values):
         airtable_record_id = values.get('airtable_record_id')
         ghl_contact_id = values.get('ghl_contact_id')
