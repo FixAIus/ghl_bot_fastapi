@@ -73,11 +73,28 @@ async def initialize(request: Request):
                 raise Exception("Failed to send message")
             message_id = message_response["messageId"]
 
+            # New Step: Create Airtable opportunity record
+            async with httpx.AsyncClient() as client:
+                airtable_response = await client.post(
+                    "http://airtable.railway.internal:8080/create-opportunity",
+                    json={
+                        "customData": {
+                            "ghl_contact_id": ghl_contact_id,
+                            "thread_id": thread_id,
+                            "opportunity_stage": "AI Bot"
+                        }
+                    }
+                )
+                if airtable_response.status_code != 200:
+                    raise Exception("Failed to create Airtable record")
+                airtable_record_id = airtable_response.json()["record_id"]
+
             update_data = {
                 "customFields": [
                     {"key": "ghl_convo_id", "field_value": convo_id},
                     {"key": "thread_id", "field_value": thread_id},
-                    {"key": "recent_automated_message_id", "field_value": message_id}
+                    {"key": "recent_automated_message_id", "field_value": message_id},
+                    {"key": "airtable_record_id", "field_value": airtable_record_id}
                 ]
             }
             update_response = await ghl_api.update_contact(ghl_contact_id, update_data)
