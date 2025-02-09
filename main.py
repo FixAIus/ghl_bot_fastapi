@@ -89,6 +89,7 @@ async def update_opportunity(request: Request):
                     await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}' and GHL contact updated", data=validated_data.model_dump())
                     return {"message": "Opportunity created and GHL contact updated successfully", "record_id": record_id}
                 else:
+                    await log("error", f"CRITICAL ERROR failed to update airtable", data=validated_data.model_dump())
                     raise HTTPException(status_code=500, detail="Failed to update GHL contact with Airtable record ID")
             else:
                 raise HTTPException(status_code=500, detail="Failed to create opportunity in Airtable")
