@@ -37,7 +37,8 @@ airtable_client = AirtableClient(api_key="patMP43xP8KHVfepX.af949fb753d690b61bb9
 @app.post("/update-opportunity")
 async def update_opportunity(request: Request):
     try:
-        data = await request.json()
+        incoming = await request.json()
+        data = incoming.get("customData", {})
         validated_data = RequestData(**data)
         await log("info", "Request received", data=validated_data.model_dump())
 
