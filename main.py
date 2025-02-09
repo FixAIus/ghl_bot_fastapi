@@ -54,10 +54,16 @@ async def create_opportunity(request: Request):
         # Create a new record
         record_id = await airtable_client.create_record(fields)
         if not record_id:
-            raise HTTPException(status_code=500, detail="Failed to create opportunity in Airtable")
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Failed to create opportunity in Airtable"}
+            )
 
         await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}'", data=validated_data.model_dump())
-        return {"record_id": record_id}
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "record_id": record_id}
+        )
 
     except RequestValidationError as exc:
         error_data = incoming.get("customData", {}) if 'incoming' in locals() else {}
