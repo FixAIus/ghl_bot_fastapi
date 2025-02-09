@@ -78,7 +78,7 @@ async def initialize(request: Request):
                 airtable_data = airtable_response.json()
                 
                 if not airtable_response.status_code == 200 or not airtable_data.get("success"):
-                    raise Exception(airtable_data.get("error", "Failed to create Airtable record"))
+                    raise Exception("Failed to create Airtable record")
                     
                 airtable_record_id = airtable_data["record_id"]
                 
