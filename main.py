@@ -2,8 +2,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, model_validator
-from functions import log, AirtableClient  # Import AirtableClient
+from AirtableClient import log, AirtableClient  # Adjusted import for AirtableClient
+from GoHighLevelAPI import GoHighLevelAPI  # Import GoHighLevelAPI
 import traceback
+import os
 
 # Define a Pydantic model for request validation
 class RequestData(BaseModel):
@@ -31,8 +33,17 @@ class RequestData(BaseModel):
 
 app = FastAPI()
 
-# Initialize AirtableClient with your credentials
-airtable_client = AirtableClient(api_key="patMP43xP8KHVfepX.af949fb753d690b61bb9ce7cede5c66f908cbfe0086e0cecf354bd7ccc7077ac", base_id="appqlPGp6IWfdyZMp", table_id="tblD1vQglA9gq73i7")
+# Initialize AirtableClient with environment variables
+airtable_client = AirtableClient(
+    api_key=os.getenv('AIRTABLE_API_KEY'),
+    base_id=os.getenv('AIRTABLE_BASE_ID'),
+    table_id=os.getenv('AIRTABLE_TABLE_ID')
+)
+
+# Initialize GoHighLevelAPI with environment variables
+go_high_level_api = GoHighLevelAPI(
+    location_id=os.getenv('GHL_LOCATION_ID')
+)
 
 @app.post("/update-opportunity")
 async def update_opportunity(request: Request):
@@ -67,8 +78,18 @@ async def update_opportunity(request: Request):
             })
             record_id = await airtable_client.create_record(fields)
             if record_id:
-                await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}'", data=validated_data.model_dump())
-                return {"message": "Opportunity created successfully", "record_id": record_id}
+                # Update the GHL contact with the Airtable record ID
+                update_data = {
+                    "customFields": [
+                        {"key": "airtable_record_id", "field_value": record_id}
+                    ]
+                }
+                ghl_update_response = await go_high_level_api.update_contact(validated_data.ghl_contact_id, update_data)
+                if ghl_update_response:
+                    await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}' and GHL contact updated", data=validated_data.model_dump())
+                    return {"message": "Opportunity created and GHL contact updated successfully", "record_id": record_id}
+                else:
+                    raise HTTPException(status_code=500, detail="Failed to update GHL contact with Airtable record ID")
             else:
                 raise HTTPException(status_code=500, detail="Failed to create opportunity in Airtable")
     except RequestValidationError as exc:
