@@ -63,16 +63,6 @@ async def initialize(request: Request):
             if not thread_id or thread_id in ["", "null", None]:
                 raise Exception("Failed to start thread")
 
-            # Step 2: Get convo_id and send updates to GHL contact
-            convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
-            if not convo_id:
-                raise Exception("Failed to get convo id")
-
-            message_response = await ghl_api.send_message(ghl_contact_id, first_message)
-            if not message_response:
-                raise Exception("Failed to send message")
-            message_id = message_response["messageId"]
-
             # New Step: Create Airtable opportunity record
             async with httpx.AsyncClient() as client:
                 airtable_response = await client.post(
@@ -85,9 +75,23 @@ async def initialize(request: Request):
                         }
                     }
                 )
-                if airtable_response.status_code != 200:
-                    raise Exception("Failed to create Airtable record")
-                airtable_record_id = airtable_response.json()["record_id"]
+                airtable_data = airtable_response.json()
+                
+                if not airtable_response.status_code == 200 or not airtable_data.get("success"):
+                    raise Exception(airtable_data.get("error", "Failed to create Airtable record"))
+                    
+                airtable_record_id = airtable_data["record_id"]
+                
+            # Step 2: Get convo_id and send updates to GHL contact
+            convo_id = await ghl_api.get_conversation_id(ghl_contact_id)
+            if not convo_id:
+                raise Exception("Failed to get convo id")
+
+            message_response = await ghl_api.send_message(ghl_contact_id, first_message)
+            if not message_response:
+                raise Exception("Failed to send message")
+            message_id = message_response["messageId"]
+
 
             update_data = {
                 "customFields": [
