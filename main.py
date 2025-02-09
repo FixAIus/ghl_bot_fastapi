@@ -38,7 +38,6 @@ async def create_opportunity(request: Request):
         data = incoming.get("customData", {})
         # Validate data for creating a new opportunity
         validated_data = CreateOpportunityRequest(**data)
-        await log("info", "Create request received", data=validated_data.model_dump())
 
         # Map incoming fields to Airtable fields
         fields = {
