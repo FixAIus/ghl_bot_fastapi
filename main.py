@@ -36,6 +36,7 @@ async def create_opportunity(request: Request):
     try:
         incoming = await request.json()
         data = incoming.get("customData", {})
+        await log("info", "Create request received", data=validated_data.model_dump())
         # Validate data for creating a new opportunity
         validated_data = CreateOpportunityRequest(**data)
 
