@@ -28,15 +28,15 @@ airtable_client = AirtableClient(
     table_id=os.getenv('AIRTABLE_TABLE_ID')
 )
 
-
-
-
 @app.post("/create-opportunity")
 async def create_opportunity(request: Request):
     try:
         incoming = await request.json()
         data = incoming.get("customData", {})
-        await log("info", "Create request received", data=validated_data.model_dump())
+        
+        # Log raw incoming data first
+        await log("info", "Create request received", raw_data=data)
+        
         # Validate data for creating a new opportunity
         validated_data = CreateOpportunityRequest(**data)
 
@@ -63,29 +63,31 @@ async def create_opportunity(request: Request):
                 content={"success": False, "error": error_msg}
             )
 
-        await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}'", data=validated_data.model_dump())
+        await log("info", f"New record created for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}'", 
+                 data=validated_data.model_dump())
         return JSONResponse(
             status_code=200,
             content={"success": True, "record_id": record_id}
         )
 
     except RequestValidationError as exc:
-        error_data = incoming.get("customData", {}) if 'incoming' in locals() else {}
-        await log("error", "Validation error", errors=exc.errors(), body=error_data)
+        await log("error", "Validation error", 
+                 errors=exc.errors(), 
+                 raw_data=incoming.get("customData", {}) if 'incoming' in locals() else {})
         return JSONResponse(
             status_code=422,
-            content={"detail": exc.errors(), "body": error_data},
+            content={"success": False, "error": "Invalid request data", "details": exc.errors()},
         )
     except Exception as e:
-        error_data = incoming.get("customData", {}) if 'incoming' in locals() else {}
         error_trace = traceback.format_exc()
-        await log("error", "Exception occurred", exception=str(e), traceback=error_trace, data=error_data)
-        raise HTTPException(status_code=400, detail="Code error")
-
-
-
-
-
+        await log("error", "Exception occurred", 
+                 exception=str(e), 
+                 traceback=error_trace, 
+                 raw_data=incoming.get("customData", {}) if 'incoming' in locals() else {})
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": str(e)}
+        )
 
 @app.post("/update-opportunity")
 async def update_opportunity(request: Request):
