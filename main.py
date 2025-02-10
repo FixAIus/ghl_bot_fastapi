@@ -18,7 +18,6 @@ class UpdateOpportunityRequest(BaseModel):
     opportunity_stage: str
     airtable_record_id: str
     opportunity_sub_stage: str = None
-    tier_1: str = None
 
 app = FastAPI()
 
@@ -107,10 +106,9 @@ async def update_opportunity(request: Request):
         # Include Opportunity Sub-Stage if provided
         if validated_data.opportunity_sub_stage:
             fields["Opportunity Sub-Stage"] = validated_data.opportunity_sub_stage
-
-        # Include Tier 1 if provided - always set to true
-        if validated_data.tier_1 is not None:
-            fields["Tier 1"] = True
+            # Set Tier 1 to true if sub-stage is "tier 1"
+            if validated_data.opportunity_sub_stage.lower() == "tier 1":
+                fields["Tier 1"] = True
 
         # Update the existing record
         updated_record = await airtable_client.update_record(validated_data.airtable_record_id, fields)
