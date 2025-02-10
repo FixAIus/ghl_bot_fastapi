@@ -18,6 +18,14 @@ class UpdateOpportunityRequest(BaseModel):
     opportunity_stage: str
     airtable_record_id: str
     opportunity_sub_stage: str = None
+    tier_1: str = None  # Optional field for Tier 1 updates
+
+    @model_validator(mode='after')
+    def validate_tier_1(self):
+        if self.tier_1 is not None:
+            # Convert string 'true'/'false' (case insensitive) to boolean
+            self.tier_1 = str(self.tier_1).lower() == 'true'
+        return self
 
 app = FastAPI()
 
@@ -94,9 +102,11 @@ async def update_opportunity(request: Request):
     try:
         incoming = await request.json()
         data = incoming.get("customData", {})
+        # Log raw incoming data first
+        await log("info", "Update request received", raw_data=data)
+        
         # Validate data for updating an existing opportunity
         validated_data = UpdateOpportunityRequest(**data)
-        await log("info", "Update request received", data=validated_data.model_dump())
 
         # Map incoming fields to Airtable fields
         fields = {
@@ -107,23 +117,44 @@ async def update_opportunity(request: Request):
         if validated_data.opportunity_sub_stage:
             fields["Opportunity Sub-Stage"] = validated_data.opportunity_sub_stage
 
+        # Include Tier 1 if provided
+        if validated_data.tier_1 is not None:
+            fields["Tier 1"] = validated_data.tier_1
+
         # Update the existing record
         updated_record = await airtable_client.update_record(validated_data.airtable_record_id, fields)
         if not updated_record:
-            raise HTTPException(status_code=500, detail="Failed to update opportunity in Airtable")
+            error_msg = "Failed to update opportunity in Airtable"
+            await log("error", error_msg,
+                     ghl_contact_id=validated_data.ghl_contact_id,
+                     fields_attempted=fields)
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": error_msg}
+            )
 
-        await log("info", f"Record updated for {validated_data.ghl_contact_id} with stage '{validated_data.opportunity_stage}'", data=validated_data.model_dump())
-        return {"message": "Update successful"}
+        await log("info", f"Record updated for {validated_data.ghl_contact_id}", 
+                 updated_fields=fields)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "Update successful"}
+        )
 
     except RequestValidationError as exc:
-        error_data = incoming.get("customData", {}) if 'incoming' in locals() else {}
-        await log("error", "Validation error", errors=exc.errors(), body=error_data)
+        await log("error", "Validation error", 
+                 errors=exc.errors(), 
+                 raw_data=incoming.get("customData", {}) if 'incoming' in locals() else {})
         return JSONResponse(
             status_code=422,
-            content={"detail": exc.errors(), "body": error_data},
+            content={"success": False, "error": "Invalid request data", "details": exc.errors()},
         )
     except Exception as e:
-        error_data = incoming.get("customData", {}) if 'incoming' in locals() else {}
         error_trace = traceback.format_exc()
-        await log("error", "Exception occurred", exception=str(e), traceback=error_trace, data=error_data)
-        raise HTTPException(status_code=400, detail="Code error")
+        await log("error", "Exception occurred", 
+                 exception=str(e), 
+                 traceback=error_trace, 
+                 raw_data=incoming.get("customData", {}) if 'incoming' in locals() else {})
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": str(e)}
+        )
