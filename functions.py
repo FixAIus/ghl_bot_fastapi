@@ -262,6 +262,7 @@ async def tier1_action(ghl_contact_id, bot_filter_tag):
         ghl_contact_id, 
         [
             (ghl_api.remove_tags, (ghl_contact_id, [bot_filter_tag]), {}, 2),
+            (ghl_api.add_tags, (ghl_contact_id, ["Tier 1"]), {}, 2),
             (ghl_api.send_message, (ghl_contact_id, "I made a video that'll help you make progress, enjoy\n"+os.getenv('STOREBUILDERVIDEO_LINK')), {}, 1)
 
         ]
