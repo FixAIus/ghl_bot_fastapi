@@ -155,13 +155,13 @@ async def trigger_response(request: Request):
         # Get API key from headers
         api_key = request.headers.get("x-api-key")
         if not api_key:
-            await log("error", "Missing API key", scope="Trigger Response")
-            return JSONResponse(content={"error": "Missing API key"}, status_code=401)
+            await log("error", "Missing API key", scope="Trigger Response", data=str(data))
+            return JSONResponse(content={"error": "Missing key"}, status_code=401)
             
         # Verify API key
         if not await authenticate(api_key):
-            await log("error", "Invalid API key", scope="Trigger Response")
-            return JSONResponse(content={"error": "Invalid API key"}, status_code=401)
+            await log("error", "Invalid key", scope="Trigger Response", data=str(data))
+            return JSONResponse(content={"error": "Invalid key"}, status_code=401)
         
         validated_fields = await validate_request_data(data)
 
