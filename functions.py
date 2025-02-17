@@ -18,7 +18,7 @@ async def authenticate(api_key: str) -> bool:
     """Verify if the provided API key exists in the Fix AI Client Database."""
     try:
         # Query the database for the API key
-        response = supabase.table("clients").select("*").eq("api_key", api_key).execute()
+        response = supabase.table("public.Fix AI Client Database").select("*").eq("api_key", api_key).execute()
         
         # Check if any records were found
         return len(response.data) > 0
