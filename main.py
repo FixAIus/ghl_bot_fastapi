@@ -14,7 +14,8 @@ from functions import (
     make_redis_json_str,
     log,
     GoHighLevelAPI,
-    KILL_BOT
+    KILL_BOT,
+    authenticate
 )
 
 
@@ -44,6 +45,17 @@ async def initialize(request: Request):
     try:
         incoming = await request.json()
         data = incoming.get("customData")
+        
+        # Get API key from headers
+        api_key = request.headers.get("x-api-key")
+        if not api_key:
+            await log("error", "Missing API key", scope="Initialize")
+            return JSONResponse(content={"error": "Missing API key"}, status_code=401)
+            
+        # Verify API key
+        if not await authenticate(api_key):
+            await log("error", "Invalid API key", scope="Initialize")
+            return JSONResponse(content={"error": "Invalid API key"}, status_code=401)
 
         ghl_contact_id = data.get("ghl_contact_id")
         first_message = data.get("first_message")
@@ -140,6 +152,17 @@ async def trigger_response(request: Request):
         incoming = await request.json()
         data = incoming.get("customData")
         
+        # Get API key from headers
+        api_key = request.headers.get("x-api-key")
+        if not api_key:
+            await log("error", "Missing API key", scope="Trigger Response")
+            return JSONResponse(content={"error": "Missing API key"}, status_code=401)
+            
+        # Verify API key
+        if not await authenticate(api_key):
+            await log("error", "Invalid API key", scope="Trigger Response")
+            return JSONResponse(content={"error": "Invalid API key"}, status_code=401)
+        
         validated_fields = await validate_request_data(data)
 
         if not validated_fields:
@@ -188,27 +211,30 @@ async def trigger_response(request: Request):
 @app.post("/testEndpoint")
 async def test_endpoint(request: Request):
     try:
+        # Get API key and data
+        api_key = request.headers.get("x-api-key")
         data = await request.json()
-        log("info", "Received request parameters", **{
-            k: data.get(k) for k in [
-                "thread_id", "assistant_id", "ghl_contact_id", 
-                "ghl_recent_message", "ghl_convo_id"
-            ]
-        })
-        return JSONResponse(
-            content={
-                "response_type": "action, message, message_action",
-                "action": {
-                    "type": "force end, handoff, add_contact_id",
-                    "details": {
-                        "ghl_convo_id": "afdlja;ldf"
-                    }
-                },
-                "message": "wwwwww",
-                "error": "booo error"
-            },
-            status_code=200
-        )
+        
+        # Log the incoming request
+        await log("info", "Test endpoint request", 
+                 scope="Test Endpoint", 
+                 api_key=api_key,
+                 request_data=data)
+
+        # Check if API key exists
+        if not api_key:
+            return JSONResponse(content={"result": "Invalid", "reason": "Missing API key"}, status_code=200)
+            
+        # Verify API key
+        auth_result = await authenticate(api_key)
+        if not auth_result:
+            return JSONResponse(content={"result": "Invalid"}, status_code=200)
+            
+        return JSONResponse(content={"result": "Valid"}, status_code=200)
+
     except Exception as e:
-        log("error", f"Unexpected error: {str(e)}", traceback=traceback.format_exc())
-        return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+        await log("error", "Test endpoint error", 
+                 scope="Test Endpoint",
+                 error=str(e),
+                 traceback=traceback.format_exc())
+        return JSONResponse(content={"result": str(e)}, status_code=200)

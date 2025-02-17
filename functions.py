@@ -5,7 +5,27 @@ import json
 import traceback
 import httpx
 import asyncio
+from supabase import create_client, Client
 
+# Initialize Supabase client
+supabase: Client = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_KEY")
+)
+
+
+async def authenticate(api_key: str) -> bool:
+    """Verify if the provided API key exists in the Fix AI Client Database."""
+    try:
+        # Query the database for the API key
+        response = supabase.table("clients").select("*").eq("api_key", api_key).execute()
+        
+        # Check if any records were found
+        return len(response.data) > 0
+    except Exception as e:
+        await log("error", f"API Key verification failed: {str(e)}", 
+                 scope="Authentication", error=str(e), traceback=traceback.format_exc())
+        return False
 
 async def log(level, msg, **kwargs):
     """Centralized logger for structured JSON logging."""
